@@ -19,6 +19,7 @@ export const ALLOWED_LANGUAGES: readonly Language[] = [
   'ru',
   'es',
   'ur',
+  'wo',
 ];
 
 export interface OnboardingPayload {

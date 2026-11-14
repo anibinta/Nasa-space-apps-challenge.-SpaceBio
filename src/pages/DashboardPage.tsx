@@ -1,34 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
-  Activity,
   ArrowRight,
+  Brain,
   Clock,
-  FileText,
-  MessageSquare,
   PlusCircle,
+  Radio,
   Rocket,
   Thermometer,
 } from 'lucide-react';
 import {
-  Area,
-  ComposedChart,
-  Line,
+  Bar,
+  BarChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
 } from 'recharts';
 import { useSpaceBio } from '../context/SpaceBioContext';
-import { FORECAST_72H } from '../data/mock';
 import { useTranslation } from '../i18n';
+import {
+  buildMiniSparklinePath,
+  evaluateVitalCardStatus,
+  extractSevenDayTrend,
+} from '../lib/bodyMonitor';
 import { calculateMissionProgress } from '../lib/healthEngine';
-import { AlertCard } from '../components/shared/AlertCard';
-import { MetricCard } from '../components/shared/MetricCard';
+import { StatusBadge } from '../components/shared/StatusBadge';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { DoctorPatientsPage } from './DoctorPatientsPage';
 import { LearningNetworkPage } from './LearningNetworkPage';
 
@@ -56,20 +57,17 @@ function computeCountdownParts(departureDate: string, plannedDurationDays: numbe
     minutes,
     seconds,
     reachedZero: remainingMs === 0,
-    targetDateIso: new Date(targetMs).toISOString().slice(0, 10),
   };
 }
 
 export const DashboardPage: React.FC = () => {
   const {
-    isGuest,
     role,
     effectiveMode,
     earthSiteEnvironment,
     mission,
+    measurements,
     dailyMetrics,
-    alerts,
-    acknowledgeAlert,
     profile,
   } = useSpaceBio();
   const { t } = useTranslation();
@@ -94,6 +92,38 @@ export const DashboardPage: React.FC = () => {
     return () => window.clearInterval(id);
   }, []);
 
+  const vitalsSnapshot = useMemo(() => {
+    const hrMetric = dailyMetrics.find((m) => m.id === 'heart_rate');
+    const tempMetric = dailyMetrics.find((m) => m.id === 'body_temperature');
+    const bpMetric = dailyMetrics.find((m) => m.id === 'blood_pressure_sys');
+
+    const heartRateBpm = hrMetric ? Math.round(hrMetric.value) : 68;
+    const spO2Percent = 98;
+    const temperatureC = tempMetric ? Number(tempMetric.value.toFixed(1)) : 36.7;
+    const systolicBp = bpMetric ? Math.round(bpMetric.value) : 134;
+    const diastolicBp = bpMetric?.secondaryValue ? Math.round(bpMetric.secondaryValue) : 84;
+
+    return {
+      heartRateBpm,
+      spO2Percent,
+      temperatureC,
+      systolicBp,
+      diastolicBp,
+      hrTrend: extractSevenDayTrend(measurements, 'heart_rate', [65, 66, 64, 67, 68, 67, heartRateBpm]),
+      spO2Trend: [98, 98, 97, 98, 99, 98, spO2Percent],
+      tempTrend: extractSevenDayTrend(
+        measurements,
+        'body_temperature',
+        [36.5, 36.6, 36.7, 36.6, 36.7, 36.8, temperatureC]
+      ),
+      bpTrend: extractSevenDayTrend(
+        measurements,
+        'blood_pressure_sys',
+        [118, 121, 124, 126, 129, 131, systolicBp]
+      ),
+    };
+  }, [dailyMetrics, measurements]);
+
   if (role === 'doctor') {
     return <DoctorPatientsPage />;
   }
@@ -107,12 +137,69 @@ export const DashboardPage: React.FC = () => {
     mission.plannedDurationDays,
     nowMs
   );
+  const utcClock = new Date(nowMs).toISOString().slice(11, 19);
 
-  const forecastData = FORECAST_72H.map((pt) => ({
-    ...pt,
-    bandBase: pt.lowerBound,
-    bandSpan: Number((pt.upperBound - pt.lowerBound).toFixed(2)),
-  }));
+  const vitalCards = [
+    {
+      id: 'heart_rate',
+      label: t('indicators.heart_rate'),
+      value: `${vitalsSnapshot.heartRateBpm} bpm`,
+      refRange: t('dashboard.vitalCards.hrRef'),
+      status: evaluateVitalCardStatus('heart_rate', vitalsSnapshot.heartRateBpm),
+      trend: vitalsSnapshot.hrTrend,
+      accent: '#34d399',
+    },
+    {
+      id: 'spo2',
+      label: t('dashboard.monitor.spO2'),
+      value: `${vitalsSnapshot.spO2Percent}%`,
+      refRange: t('dashboard.vitalCards.spO2Ref'),
+      status: evaluateVitalCardStatus('spo2', vitalsSnapshot.spO2Percent),
+      trend: vitalsSnapshot.spO2Trend,
+      accent: '#38bdf8',
+    },
+    {
+      id: 'body_temperature',
+      label: t('indicators.body_temperature'),
+      value: `${vitalsSnapshot.temperatureC} °C`,
+      refRange: t('dashboard.vitalCards.tempRef'),
+      status: evaluateVitalCardStatus('body_temperature', vitalsSnapshot.temperatureC),
+      trend: vitalsSnapshot.tempTrend,
+      accent: '#38bdf8',
+    },
+    {
+      id: 'blood_pressure_sys',
+      label: t('indicators.blood_pressure_sys'),
+      value: `${vitalsSnapshot.systolicBp}/${vitalsSnapshot.diastolicBp} mmHg`,
+      refRange: t('dashboard.vitalCards.bpRef'),
+      status: evaluateVitalCardStatus('blood_pressure_sys', vitalsSnapshot.systolicBp),
+      trend: vitalsSnapshot.bpTrend,
+      accent: vitalsSnapshot.systolicBp > 130 ? '#f59e0b' : '#34d399',
+    },
+  ];
+
+  const vitalsBarData = [
+    {
+      key: 'FC',
+      pct: Math.min(100, Math.round((vitalsSnapshot.heartRateBpm / 130) * 100)),
+      raw: `${vitalsSnapshot.heartRateBpm} bpm`,
+    },
+    {
+      key: 'SpO2',
+      pct: vitalsSnapshot.spO2Percent,
+      raw: `${vitalsSnapshot.spO2Percent}%`,
+    },
+    {
+      key: 'Temp',
+      pct: Math.min(100, Math.max(20, Math.round(((vitalsSnapshot.temperatureC - 35) / 4) * 100))),
+      raw: `${vitalsSnapshot.temperatureC} °C`,
+    },
+    {
+      key: 'TA',
+      pct: Math.min(100, Math.round((vitalsSnapshot.systolicBp / 160) * 100)),
+      raw: `${vitalsSnapshot.systolicBp}/${vitalsSnapshot.diastolicBp}`,
+    },
+  ];
 
   return (
     <motion.div
@@ -121,354 +208,355 @@ export const DashboardPage: React.FC = () => {
       transition={{ duration: reducedMotion ? 0 : 0.2 }}
       className="space-y-6"
     >
-      {/* Page Title & Shortcuts Row */}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white text-balance">
-            {t('dashboard.title')}
-          </h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            {t('dashboard.subtitle')} · {profile.fullName} ({profile.age}y)
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Button type="button" size="sm" onClick={() => navigate('/measurements')}>
-            <PlusCircle className="h-4 w-4" aria-hidden="true" />
-            <span>{t('dashboard.shortcutNewMeasurement')}</span>
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => navigate('/chat')}>
-            <MessageSquare className="h-4 w-4" aria-hidden="true" />
-            <span>{t('dashboard.shortcutOpenChat')}</span>
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => navigate('/reports')}>
-            <FileText className="h-4 w-4" aria-hidden="true" />
-            <span>{t('dashboard.shortcutViewReport')}</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Earth mode returning-astronaut environmental summary */}
-      {effectiveMode === 'earth' && (
-        <Card className="border-emerald-500/40">
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
-                <Thermometer className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-slate-950 dark:text-white">
-                  {earthSiteEnvironment.siteName} · {t('common.earthMode')}
-                </div>
-                <div className="text-xs text-slate-600 dark:text-slate-300">
-                  {t('doctor.returningFocus')}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-mono-tabular">
-              <span>{t('header.tempLabel')}: {earthSiteEnvironment.temperatureC} °C</span>
-              <span>{t('header.humidityLabel')}: {earthSiteEnvironment.humidityPercent}%</span>
-              <span>{t('header.heatIndexLabel')}: {earthSiteEnvironment.heatIndexC} °C</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Mission Banner + Live Countdown */}
-      <Card>
-        <CardContent className="p-5 space-y-5">
+      {/* Full-Width Hero Mission Card */}
+      <Card data-testid="mission-hero-card">
+        <CardContent className="p-6 space-y-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-3">
-              <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                  effectiveMode === 'space'
-                    ? 'bg-cyan-500/15 text-cyan-500'
-                    : 'bg-emerald-500/15 text-emerald-500'
-                }`}
-              >
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-500/15 text-cyan-400">
                 <Rocket className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">
                     {mission.name}
-                  </h2>
+                  </h1>
+                  <span className="rounded border border-cyan-400/25 bg-cyan-500/10 px-2 py-0.5 font-mono-tabular text-xs font-semibold text-cyan-700 dark:text-cyan-300">
+                    {t('common.day')} {progress.currentDay}/{mission.plannedDurationDays}
+                  </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    · {effectiveMode === 'space' ? t('common.spaceMode') : t('common.earthMode')} ·{' '}
-                    {t('common.simulatedData')}
+                    · {profile.fullName} · {t('common.simulatedData')}
                   </span>
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-300 font-mono-tabular">
-                  <span>
-                    {t('common.day')} {mission.currentDay}
-                  </span>
-                  <span>
-                    {t('dashboard.missionBanner.planned')}: {mission.plannedDurationDays}{' '}
-                    {t('common.days')}
-                  </span>
-                  <span>
-                    {t('dashboard.missionBanner.actual')}:{' '}
-                    {mission.actualDurationDays
-                      ? `${mission.actualDurationDays} ${t('common.days')}`
-                      : t('dashboard.missionBanner.pendingReturn')}
-                  </span>
+
+                {/* UTC Mission Clock & Communication Delay (or Earth Site) */}
+                <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-mono-tabular">
+                  {effectiveMode === 'space' ? (
+                    <div
+                      data-testid="mission-clock-delay"
+                      className="flex flex-wrap items-center gap-x-5 gap-y-1 text-cyan-700 dark:text-cyan-300"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>
+                          {t('header.missionClock')}: <span dir="ltr">{utcClock} UTC</span>
+                        </span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                        <Radio className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
+                        <span>{t('header.commDelay')}</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      data-testid="earth-mode-environment"
+                      className="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300"
+                    >
+                      <Thermometer className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>
+                        {earthSiteEnvironment.siteName} ·{' '}
+                        <span dir="ltr">
+                          {earthSiteEnvironment.temperatureC}°C · {earthSiteEnvironment.humidityPercent}% RH
+                        </span>
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-baseline gap-2 font-mono-tabular">
-              <span
-                className={`text-3xl font-bold ${
-                  effectiveMode === 'space'
-                    ? 'text-cyan-700 dark:text-cyan-400'
-                    : 'text-emerald-700 dark:text-emerald-400'
-                }`}
+            {/* Completion % + Single Primary Action: Nouvelle mesure */}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-baseline gap-1.5 font-mono-tabular">
+                <span className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">
+                  {progress.percentComplete}%
+                </span>
+                <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {t('dashboard.missionBanner.complete')}
+                </span>
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                data-testid="hero-new-measurement-btn"
+                onClick={() => navigate('/measurements')}
               >
-                {progress.percentComplete}%
-              </span>
-              <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {t('dashboard.missionBanner.complete')}
-              </span>
+                <PlusCircle className="h-4 w-4" aria-hidden="true" />
+                <span>{t('dashboard.shortcutNewMeasurement')}</span>
+              </Button>
             </div>
           </div>
 
-          {/* Live Countdown Block */}
-          <div
-            data-testid="mission-countdown"
-            className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0d162d]"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                <Clock className="h-4 w-4 text-cyan-500" aria-hidden="true" />
-                <span>{t('countdown.title')}</span>
-              </div>
-              <span className="font-mono-tabular text-xs text-slate-500 dark:text-slate-400">
-                {t('countdown.targetReturn')}: {countdown.targetDateIso}
-              </span>
-            </div>
-
-            {countdown.reachedZero && !mission.actualDurationDays ? (
-              <div
-                role="status"
-                className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/15 px-4 py-3 text-sm font-medium text-amber-950 dark:text-amber-200"
-              >
-                <span>{t('countdown.reachedBanner')}</span>
-                <Button type="button" size="sm" variant="amber" onClick={() => navigate('/mission')}>
-                  {t('countdown.goToMission')}
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-4">
-                {[
-                  { val: countdown.days, label: t('countdown.days') },
-                  { val: String(countdown.hours).padStart(2, '0'), label: t('countdown.hours') },
-                  { val: String(countdown.minutes).padStart(2, '0'), label: t('countdown.minutes') },
-                  { val: String(countdown.seconds).padStart(2, '0'), label: t('countdown.seconds') },
-                ].map((cell) => (
-                  <div
-                    key={cell.label}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center dark:border-slate-800 dark:bg-[#0a1226]"
-                  >
-                    <div className="font-mono-tabular text-xl sm:text-2xl font-bold text-slate-950 dark:text-white">
-                      {cell.val}
-                    </div>
-                    <div className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {cell.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Progress Bar with Milestones (25%, 50%, 75%) */}
-          <div>
+          {/* Countdown + 5-Stage Progress Bar */}
+          <div className="grid gap-4 lg:grid-cols-12 lg:items-center">
             <div
-              role="progressbar"
-              aria-valuenow={progress.percentComplete}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${mission.name} ${progress.percentComplete}% ${t('dashboard.missionBanner.complete')}`}
-              className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+              data-testid="mission-countdown"
+              className="lg:col-span-5 rounded-lg border border-cyan-400/20 bg-slate-50 px-3.5 py-2.5 dark:bg-[#070d17]/80"
             >
-              <div
-                className={`h-full rounded-full ${
-                  effectiveMode === 'space'
-                    ? 'bg-gradient-to-r from-cyan-500 to-violet-500'
-                    : 'bg-gradient-to-r from-emerald-500 to-sky-500'
-                }`}
-                style={{
-                  width: `${progress.percentComplete}%`,
-                  transition: reducedMotion ? 'none' : 'width 300ms ease',
-                }}
-              />
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-5">
-              {MILESTONE_POSITIONS.map((ms) => {
-                const reached = progress.completedMilestones.includes(ms.key);
-                return (
-                  <div
-                    key={ms.key}
-                    className={`flex items-center gap-1.5 ${
-                      reached
-                        ? 'font-medium text-cyan-800 dark:text-cyan-300'
-                        : 'text-slate-500 dark:text-slate-500'
-                    }`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        reached ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    />
-                    <span className="truncate">
-                      {t(`dashboard.missionBanner.milestones.${ms.key}`)}
+              {countdown.reachedZero && !mission.actualDurationDays ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-amber-300">
+                  <span>{t('countdown.reachedBanner')}</span>
+                  <Button type="button" size="sm" variant="amber" onClick={() => navigate('/mission')}>
+                    {t('countdown.goToMission')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {t('countdown.title')}
+                  </span>
+                  <div className="flex items-center gap-2 font-mono-tabular text-sm font-bold text-slate-900 dark:text-white">
+                    <span>
+                      {countdown.days}
+                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">j</span>
+                    </span>
+                    <span>
+                      {String(countdown.hours).padStart(2, '0')}
+                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">h</span>
+                    </span>
+                    <span>
+                      {String(countdown.minutes).padStart(2, '0')}
+                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">m</span>
+                    </span>
+                    <span>
+                      {String(countdown.seconds).padStart(2, '0')}
+                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">s</span>
                     </span>
                   </div>
-                );
-              })}
+                </div>
+              )}
+            </div>
+
+            <div className="lg:col-span-7 space-y-2">
+              <div
+                role="progressbar"
+                aria-valuenow={progress.percentComplete}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${mission.name} ${progress.percentComplete}% ${t('dashboard.missionBanner.complete')}`}
+                className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800/90"
+              >
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400"
+                  style={{
+                    width: `${progress.percentComplete}%`,
+                    transition: reducedMotion ? 'none' : 'width 300ms ease',
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                {MILESTONE_POSITIONS.map((ms) => {
+                  const reached = progress.completedMilestones.includes(ms.key);
+                  return (
+                    <div
+                      key={ms.key}
+                      className={`flex items-center gap-1.5 ${
+                        reached
+                          ? 'font-medium text-cyan-800 dark:text-cyan-300'
+                          : 'text-slate-500 dark:text-slate-500'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          reached ? 'bg-cyan-400' : 'bg-slate-400/50 dark:bg-slate-700'
+                        }`}
+                      />
+                      <span>{t(`dashboard.missionBanner.milestones.${ms.key}`)}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 6 Daily Metric Cards */}
-      <section aria-label="Daily biometric indicators">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {dailyMetrics.map((metric) => (
-            <MetricCard
-              key={metric.id}
-              metric={metric}
-              onSelect={() => navigate(`/trends?indicator=${metric.id}`)}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* Bottom Split: Alerts Panel + 72-Hour Forecast */}
-      <div className="grid gap-6 lg:grid-cols-12 items-stretch">
-        <Card className="lg:col-span-6 flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle>{t('dashboard.alertsTitle')}</CardTitle>
-              <CardDescription>{t('common.simulatedData')}</CardDescription>
+      {/* Two Columns Below Mission Card (No Body Model on Dashboard) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+        {/* LEFT COLUMN: Constantes vitales (4 cards + Profil instantané live chart) */}
+        <Card data-testid="constantes-vitales-section" className="lg:col-span-7">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base font-semibold">
+                {t('dashboard.monitor.leftTitle')}
+              </CardTitle>
+              <span className="text-[11px] text-slate-400">{t('common.simulatedData')}</span>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/anomalies')}
-            >
-              <span>{t('nav.anomalies')}</span>
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </Button>
           </CardHeader>
-          <CardContent className="flex-1 space-y-3">
-            {alerts.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                {t('dashboard.alertsEmpty')}
+
+          <CardContent className="space-y-5">
+            {/* 4 Vital Cards: Value + Reference Range + Status Badge + 7-Day Mini Trend */}
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              {vitalCards.map((vc) => {
+                const sparkPath = buildMiniSparklinePath(vc.trend, 88, 26);
+                return (
+                  <div
+                    key={vc.id}
+                    data-testid={`vital-card-${vc.id}`}
+                    className="flex flex-col justify-between gap-3 rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        {vc.label}
+                      </span>
+                      <StatusBadge status={vc.status} />
+                    </div>
+
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <div
+                          className="font-mono-tabular text-xl font-bold text-slate-950 dark:text-white whitespace-nowrap"
+                          dir="ltr"
+                        >
+                          {vc.value}
+                        </div>
+                        <div className="mt-1 text-[11px] font-mono-tabular text-slate-500 dark:text-slate-400">
+                          {t('dashboard.referenceRange')}: {vc.refRange}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <svg
+                          viewBox="0 0 88 26"
+                          className="h-6 w-[88px]"
+                          aria-label={`${vc.label} ${t('dashboard.vitalCards.trend7d')}`}
+                        >
+                          <path
+                            d={sparkPath}
+                            fill="none"
+                            stroke={vc.accent}
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span className="text-[10px] text-slate-400">
+                          {t('dashboard.vitalCards.trend7d')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Profil instantané Live Chart */}
+            <div
+              data-testid="profil-instantane-chart"
+              className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75"
+            >
+              <div className="mb-2 flex items-center justify-between text-xs">
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {t('dashboard.monitor.leftChartTitle')}
+                </span>
+                <span className="font-mono-tabular text-[11px] text-cyan-500">LIVE</span>
               </div>
-            ) : (
-              alerts.map((al) => (
-                <AlertCard
-                  key={al.id}
-                  alert={al}
-                  onAcknowledge={isGuest ? undefined : acknowledgeAlert}
-                />
-              ))
-            )}
+              <div className="h-36 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={vitalsBarData} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                    <XAxis
+                      dataKey="key"
+                      interval={0}
+                      tick={{ fill: '#94a3b8', fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#0b1424',
+                        border: '1px solid rgba(56,189,248,0.28)',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#f8fafc',
+                      }}
+                      formatter={(_val: unknown, _name: unknown, item: { payload?: { raw?: string } }) => [
+                        item?.payload?.raw ?? '',
+                        '',
+                      ]}
+                    />
+                    <Bar dataKey="pct" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                      {vitalsBarData.map((entry, idx) => (
+                        <Cell
+                          key={entry.key}
+                          fill={idx === 3 && vitalsSnapshot.systolicBp > 130 ? '#f59e0b' : '#38bdf8'}
+                          fillOpacity={0.85}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-6 flex flex-col">
-          <CardHeader>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <CardTitle>{t('dashboard.forecastTitle')}</CardTitle>
-                <CardDescription>
-                  {t('dashboard.forecastSubtitle')} · {t('common.simulatedData')}
-                </CardDescription>
+        {/* RIGHT COLUMN: Suivi cérébral card + Voir la carte corporelle link */}
+        <Card data-testid="suivi-cerebral-card" className="lg:col-span-5">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-500/15 text-cyan-400">
+                  <Brain className="h-4.5 w-4.5" aria-hidden="true" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold">
+                    {t('dashboard.vitalCards.brainCardTitle')}
+                  </CardTitle>
+                  <div className="text-[11px] text-slate-400">{t('common.simulatedData')}</div>
+                </div>
               </div>
-              <Activity className="h-5 w-5 text-cyan-500 shrink-0" aria-hidden="true" />
+              <StatusBadge status="nominal" />
             </div>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-start gap-4">
-            <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5 text-sm text-amber-950 dark:text-amber-200">
-              {t('dashboard.forecastSummary')}
-            </p>
 
-            <div className="h-64 w-full" aria-label={t('dashboard.forecastTitle')}>
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={forecastData} margin={{ top: 10, right: 16, left: -12, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.18)" />
-                  <XAxis
-                    dataKey="hourLabel"
-                    tick={{ fill: '#94a3b8', fontSize: 12 }}
-                    axisLine={{ stroke: 'rgba(148,163,184,0.25)' }}
-                  />
-                  <YAxis
-                    domain={[64, 76]}
-                    tick={{ fill: '#94a3b8', fontSize: 12 }}
-                    axisLine={{ stroke: 'rgba(148,163,184,0.25)' }}
-                    unit=" bpm"
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.94)',
-                      border: '1px solid rgba(148, 163, 184, 0.25)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#f8fafc',
-                    }}
-                    formatter={(val: unknown, name?: string | number) => {
-                      if (name === 'bandBase') return ['', ''];
-                      if (name === t('dashboard.forecastBand')) {
-                        return [`±${(Number(val) / 2).toFixed(1)} bpm`, t('dashboard.forecastBand')];
-                      }
-                      return [`${val} bpm`, t('dashboard.forecastPredicted')];
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="bandBase"
-                    stackId="band"
-                    stroke="none"
-                    fill="transparent"
-                    isAnimationActive={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="bandSpan"
-                    stackId="band"
-                    stroke="none"
-                    fill="#06b6d4"
-                    fillOpacity={0.22}
-                    name={t('dashboard.forecastBand')}
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="predicted"
-                    stroke="#22d3ee"
-                    strokeWidth={2.5}
-                    dot={{ r: 3.5, fill: '#22d3ee' }}
-                    name={t('dashboard.forecastPredicted')}
-                    isAnimationActive={false}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
+          <CardContent className="space-y-5">
+            <div className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
+                {t('dashboard.monitor.organPanel.orbitalRiskLabel')}
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                {t('dashboard.vitalCards.brainOrbitalRiskNominal')}
+              </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="h-0.5 w-5 bg-cyan-400" aria-hidden="true" />
-                <span>{t('dashboard.forecastPredicted')}</span>
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {t('dashboard.monitor.organPanel.brain.m1')}
+                </div>
+                <div className="mt-2 font-mono-tabular text-xl font-bold text-slate-950 dark:text-white" dir="ltr">
+                  11.4 <span className="text-xs font-normal text-slate-400">mmHg</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-5 rounded-sm bg-cyan-500/25 border border-cyan-500/40" aria-hidden="true" />
-                <span>{t('dashboard.forecastBand')}</span>
+
+              <div className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {t('dashboard.monitor.organPanel.brain.m2')}
+                </div>
+                <div className="mt-2 font-mono-tabular text-xl font-bold text-emerald-600 dark:text-emerald-400" dir="ltr">
+                  96 <span className="text-xs font-normal text-slate-400">%</span>
+                </div>
               </div>
+            </div>
+
+            <div className="pt-1">
+              <Link
+                to="/body-map"
+                data-testid="view-body-map-link"
+                className="inline-flex w-full items-center justify-between rounded-xl border border-cyan-400/35 bg-cyan-500/12 px-4 py-3 text-sm font-semibold text-cyan-900 transition-colors hover:border-cyan-400/60 hover:bg-cyan-500/20 dark:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              >
+                <span>{t('dashboard.vitalCards.viewBodyMap')}</span>
+                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+              </Link>
             </div>
           </CardContent>
         </Card>

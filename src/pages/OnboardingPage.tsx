@@ -297,7 +297,7 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
                 />
               </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                 {filteredLanguages.map((langOpt) => {
                   const active = selectedLang === langOpt.code;
                   return (

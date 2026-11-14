@@ -9,6 +9,7 @@ import { hi } from './hi.ts';
 import { pt } from './pt.ts';
 import { ru } from './ru.ts';
 import { ur } from './ur.ts';
+import { wo } from './wo.ts';
 import { zh } from './zh.ts';
 import { SUPPORTED_LANGUAGES } from '../data/languages.ts';
 import type { Language } from '../types/health.ts';
@@ -23,6 +24,7 @@ const ALL_DICTS: Record<Language, typeof en> = {
   pt,
   ru,
   ur,
+  wo,
   zh,
 };
 
@@ -51,9 +53,9 @@ function collectLeafPaths(obj: unknown, prefix = ''): Map<string, string> {
   return out;
 }
 
-test('all 10 supported languages are marked fullyTranslated and provide complete non-empty keys', () => {
+test('all 11 supported languages are marked fullyTranslated and provide complete non-empty keys', () => {
   const enLeaves = collectLeafPaths(en);
-  assert.equal(SUPPORTED_LANGUAGES.length, 10);
+  assert.equal(SUPPORTED_LANGUAGES.length, 11);
 
   for (const lang of SUPPORTED_LANGUAGES) {
     assert.equal(lang.fullyTranslated, true, `${lang.code} should be marked fullyTranslated`);

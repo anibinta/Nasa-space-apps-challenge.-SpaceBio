@@ -3,6 +3,7 @@
   "appId": "1:803479194416:web:f715f3591bb028802b56f5",
   "apiKey": "AIzaSyBALW8wZm2wjOtEBuU9PtOja2DGIfOjpRc",
   "authDomain": "diesel-circlet-zv0ns.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-spacebio-f3b6bbc1-4998-4fd6-bf13-f8fe1eb2e4c6",
   "storageBucket": "diesel-circlet-zv0ns.firebasestorage.app",
   "messagingSenderId": "803479194416",
   "measurementId": "",

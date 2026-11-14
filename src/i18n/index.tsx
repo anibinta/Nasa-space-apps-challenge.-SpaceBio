@@ -8,6 +8,7 @@ import { hi } from './hi';
 import { pt } from './pt';
 import { ru } from './ru';
 import { ur } from './ur';
+import { wo } from './wo';
 import { zh } from './zh';
 import { getLanguageOption } from '../data/languages';
 import type { Language } from '../types/health';
@@ -24,6 +25,7 @@ export const DICTS: Record<Language, Dict> = {
   pt,
   ru,
   ur,
+  wo,
   zh,
 };
 

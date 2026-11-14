@@ -246,6 +246,15 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     prevUserRef.current = user;
   }, [user, isGuest]);
 
+  // Auto-dismiss "Connecté..." transition confirmation after 3 seconds
+  useEffect(() => {
+    if (!transitionBanner) return;
+    const timer = window.setTimeout(() => {
+      setTransitionBanner(null);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [transitionBanner]);
+
   // Sync theme & text size to <html>
   useEffect(() => {
     const root = document.documentElement;

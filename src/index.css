@@ -7,14 +7,14 @@
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --bg-canvas: #f4f7fb;
     --bg-surface: #ffffff;
-    --border-hairline: rgba(15, 23, 42, 0.12);
+    --border-hairline: rgba(14, 116, 144, 0.22);
     --text-size-scale: 1;
   }
 
   .dark {
-    --bg-canvas: #050a18;
-    --bg-surface: #0a1226;
-    --border-hairline: rgba(148, 163, 184, 0.18);
+    --bg-canvas: #070d17;
+    --bg-surface: #0b1424;
+    --border-hairline: rgba(56, 189, 248, 0.28);
   }
 
   html {
@@ -43,6 +43,14 @@
   font-family: var(--font-mono);
 }
 
+/* Faint 36 px deep-space telemetry grid */
+.space-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.045) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
 /* Subtle background drift animation (disabled automatically under prefers-reduced-motion) */
 @keyframes spaceBgDrift {
   0% {
@@ -61,7 +69,118 @@
   will-change: transform;
 }
 
-/* Solid opaque card panels with 200ms transitions so imagery never shows behind cards, tables, or charts */
+/* Holographic body monitor physiological SVG animations */
+@keyframes holoRimDash {
+  to {
+    stroke-dashoffset: -112;
+  }
+}
+
+@keyframes vesselFlowDash {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+
+@keyframes neuralGlowPulse {
+  0%, 100% {
+    opacity: 0.72;
+    filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.45));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 11px rgba(244, 114, 182, 0.85));
+  }
+}
+
+@keyframes lungBreathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.86;
+  }
+  45% {
+    transform: scale(1.045, 1.03);
+    opacity: 1;
+  }
+}
+
+@keyframes heartBeatPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 5px rgba(248, 113, 113, 0.55));
+  }
+  18% {
+    transform: scale(1.11);
+    filter: drop-shadow(0 0 12px rgba(248, 113, 113, 0.92));
+  }
+  32% {
+    transform: scale(1.03);
+  }
+  46% {
+    transform: scale(1.075);
+    filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.82));
+  }
+}
+
+@keyframes hotspotRingPulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@keyframes waveformSlide {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.holo-rim-animate {
+  animation: holoRimDash 3.2s linear infinite;
+}
+
+.holo-vessel-flow {
+  animation: vesselFlowDash 1.4s linear infinite;
+}
+
+.holo-neural-pulse {
+  animation: neuralGlowPulse 2.6s ease-in-out infinite;
+}
+
+.holo-lung-breathe {
+  transform-box: fill-box;
+  transform-origin: center center;
+  animation: lungBreathe var(--breath-period, 3.8s) ease-in-out infinite;
+}
+
+.holo-heart-beat {
+  transform-box: fill-box;
+  transform-origin: center center;
+  animation: heartBeatPulse var(--hb-period, 0.952s) ease-in-out infinite;
+}
+
+.holo-hotspot-pulse {
+  transform-box: fill-box;
+  transform-origin: center center;
+  animation: hotspotRingPulse 2s ease-out infinite;
+}
+
+.holo-waveform-scroll {
+  animation: waveformSlide 4.5s linear infinite;
+}
+
+/* Solid opaque card panels with 1 px cyan border at 28 % opacity and soft shadow */
 .glass-panel {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-hairline);
@@ -72,7 +191,7 @@
 }
 
 .dark .glass-panel {
-  box-shadow: 0 10px 32px -12px rgba(2, 6, 23, 0.85);
+  box-shadow: 0 12px 32px -12px rgba(2, 6, 23, 0.85), 0 0 24px -16px rgba(56, 189, 248, 0.25);
 }
 
 .font-mono-tabular {
@@ -85,7 +204,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .space-bg-drift {
+  .space-bg-drift,
+  .holo-rim-animate,
+  .holo-vessel-flow,
+  .holo-neural-pulse,
+  .holo-lung-breathe,
+  .holo-heart-beat,
+  .holo-hotspot-pulse,
+  .holo-waveform-scroll {
     animation: none !important;
     transform: none !important;
   }

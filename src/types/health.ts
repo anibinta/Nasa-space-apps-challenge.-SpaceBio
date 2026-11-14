@@ -8,7 +8,8 @@ export type Language =
   | 'pt'
   | 'ru'
   | 'es'
-  | 'ur';
+  | 'ur'
+  | 'wo';
 
 export type ThemeMode = 'dark' | 'light';
 export type TextSize = 'sm' | 'md' | 'lg';

@@ -80,6 +80,13 @@ export const SUPPORTED_LANGUAGES: readonly LanguageOption[] = [
     flagCodes: ['pk', 'in'],
     fullyTranslated: true,
   },
+  {
+    code: 'wo',
+    name: 'Wolof',
+    nativeName: 'Wolof',
+    flagCodes: ['sn'],
+    fullyTranslated: true,
+  },
 ] as const;
 
 export function getLanguageOption(code: Language): LanguageOption {
