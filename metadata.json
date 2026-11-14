@@ -1,0 +1,6 @@
+{
+  "name": "SpaceBio",
+  "description": "Astronaut and flight surgeon health monitoring dashboard for long-duration space and analog missions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

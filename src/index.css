@@ -1,0 +1,99 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --bg-canvas: #f4f7fb;
+    --bg-surface: #ffffff;
+    --border-hairline: rgba(15, 23, 42, 0.12);
+    --text-size-scale: 1;
+  }
+
+  .dark {
+    --bg-canvas: #050a18;
+    --bg-surface: #0a1226;
+    --border-hairline: rgba(148, 163, 184, 0.18);
+  }
+
+  html {
+    font-family: var(--font-sans);
+    font-size: calc(16px * var(--text-size-scale));
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--bg-canvas);
+    overflow-x: hidden;
+  }
+}
+
+[dir="rtl"] * {
+  letter-spacing: 0 !important;
+}
+
+[dir="rtl"] .font-mono-tabular {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+[dir="rtl"] [dir="ltr"].font-mono-tabular {
+  font-family: var(--font-mono);
+}
+
+/* Subtle background drift animation (disabled automatically under prefers-reduced-motion) */
+@keyframes spaceBgDrift {
+  0% {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.06) translate3d(-0.8%, -0.6%, 0);
+  }
+  100% {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+}
+
+.space-bg-drift {
+  animation: spaceBgDrift 60s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Solid opaque card panels with 200ms transitions so imagery never shows behind cards, tables, or charts */
+.glass-panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  box-shadow: 0 4px 24px -6px rgba(2, 6, 23, 0.08);
+  transition: border-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .glass-panel {
+  box-shadow: 0 10px 32px -12px rgba(2, 6, 23, 0.85);
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .space-bg-drift {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
