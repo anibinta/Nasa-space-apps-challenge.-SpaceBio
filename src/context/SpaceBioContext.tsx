@@ -105,9 +105,9 @@ interface SpaceBioContextValue {
   exitGuestMode: () => void;
   onboardingCompleted: boolean;
   workspaceRevision: number;
-  transitionBanner: string | null;
+  transitionBannerKey: string | null;
   dismissTransitionBanner: () => void;
-  completeOnboarding: (payload: OnboardingSubmission, bannerText: string) => void;
+  completeOnboarding: (payload: OnboardingSubmission, bannerKey: string) => void;
   returnToOnboarding: () => void;
 
   language: Language;
@@ -204,7 +204,7 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isGuest, setIsGuest] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
-  const [transitionBanner, setTransitionBanner] = useState<string | null>(null);
+  const [transitionBannerKey, setTransitionBannerKey] = useState<string | null>(null);
 
   const [language, setLanguageState] = useState<Language>('fr');
   const [theme, setThemeState] = useState<ThemeMode>('dark');
@@ -240,20 +240,20 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (prevUserRef.current && !user) {
       setOnboardingCompleted(false);
       setLanguageState('fr');
-      setTransitionBanner(null);
+      setTransitionBannerKey(null);
       setSyncError(null);
     }
     prevUserRef.current = user;
   }, [user, isGuest]);
 
-  // Auto-dismiss "Connecté..." transition confirmation after 3 seconds
+  // Auto-dismiss transition confirmation after 3 seconds
   useEffect(() => {
-    if (!transitionBanner) return;
+    if (!transitionBannerKey) return;
     const timer = window.setTimeout(() => {
-      setTransitionBanner(null);
+      setTransitionBannerKey(null);
     }, 3000);
     return () => window.clearTimeout(timer);
-  }, [transitionBanner]);
+  }, [transitionBannerKey]);
 
   // Sync theme & text size to <html>
   useEffect(() => {
@@ -364,7 +364,7 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setRoleState(nextRole);
   };
 
-  const completeOnboarding = (payload: OnboardingSubmission, bannerText: string) => {
+  const completeOnboarding = (payload: OnboardingSubmission, bannerKey: string) => {
     const cleanRole = payload.role;
     const cleanLang = normalizeLanguage(payload.language);
     const cleanFirst = payload.firstName.trim();
@@ -401,7 +401,7 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }));
     }
 
-    setTransitionBanner(bannerText);
+    setTransitionBannerKey(bannerKey);
     setOnboardingCompleted(true);
 
     void runServerSync(async (token) => {
@@ -463,7 +463,7 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setDbDoctorAnomalies(null);
     setAdminSummary(null);
     setSyncError(null);
-    setTransitionBanner(null);
+    setTransitionBannerKey(null);
     setOnboardingCompleted(false);
     setWorkspaceRevision((n) => n + 1);
     setIsGuest(true);
@@ -474,7 +474,7 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setOnboardingCompleted(false);
     setLanguageState('fr');
     setSyncError(null);
-    setTransitionBanner(null);
+    setTransitionBannerKey(null);
   };
 
   const returnToOnboarding = () => {
@@ -615,7 +615,9 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const revisePlannedDuration = (newDays: number, reason: string) => {
     if (isGuest) return;
     const sanitized = Math.max(1, Math.round(newDays));
-    const changedBy = role === 'doctor' ? 'Flight doctor' : 'Crew / Operations';
+    const changedBy = role === 'doctor' ? 'Flight doctor' : 'Astronaut';
+    const changedByKey = role === 'doctor' ? 'common.roleDoctor' : 'mission.defaults.changedByRole';
+    const trimmedReason = reason.trim();
     setMission((prev) => {
       if (sanitized === prev.plannedDurationDays) return prev;
       return {
@@ -626,9 +628,11 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             id: `chg-${Date.now()}`,
             previousDays: prev.plannedDurationDays,
             newDays: sanitized,
-            reason: reason.trim() || 'Mission timeline revision',
+            reason: trimmedReason || 'Planned duration updated in Mission configuration',
+            reasonKey: trimmedReason ? undefined : 'mission.defaults.manualUpdateReason',
             changedAt: new Date().toISOString(),
             changedBy,
+            changedByKey,
           },
           ...prev.changeHistory,
         ],
@@ -809,8 +813,8 @@ export const SpaceBioProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         exitGuestMode,
         onboardingCompleted,
         workspaceRevision,
-        transitionBanner,
-        dismissTransitionBanner: () => setTransitionBanner(null),
+        transitionBannerKey,
+        dismissTransitionBanner: () => setTransitionBannerKey(null),
         completeOnboarding,
         returnToOnboarding,
         language,

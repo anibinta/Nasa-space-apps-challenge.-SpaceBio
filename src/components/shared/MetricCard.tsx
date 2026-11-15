@@ -1,6 +1,7 @@
 import React from 'react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 import { useTranslation } from '../../i18n';
+import { formatLocaleNumber } from '../../i18n/format';
 import type { DailyMetricSummary } from '../../types/health';
 import { Card, CardContent } from '../ui/card';
 import { StatusBadge } from './StatusBadge';
@@ -9,12 +10,12 @@ export const MetricCard: React.FC<{
   metric: DailyMetricSummary;
   onSelect?: () => void;
 }> = ({ metric, onSelect }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const displayValue =
     metric.secondaryValue !== undefined
-      ? `${metric.value}/${metric.secondaryValue}`
-      : `${metric.value}`;
+      ? `${formatLocaleNumber(metric.value, language)}/${formatLocaleNumber(metric.secondaryValue, language)}`
+      : formatLocaleNumber(metric.value, language);
 
   const strokeColor =
     metric.status === 'alert'
@@ -63,15 +64,15 @@ export const MetricCard: React.FC<{
           </div>
           <div className="text-end text-xs text-slate-500 dark:text-slate-400 font-mono-tabular">
             <div>
-              {t('dashboard.referenceRange')}: <span dir="ltr">{metric.referenceMin}–{metric.referenceMax}</span>
+              {t('dashboard.referenceRange')}: <span dir="ltr">{formatLocaleNumber(metric.referenceMin, language)}–{formatLocaleNumber(metric.referenceMax, language)}</span>
             </div>
             <div>
-              {t('dashboard.baseline')}: <span dir="ltr">{metric.baseline}</span>
+              {t('dashboard.baseline')}: <span dir="ltr">{formatLocaleNumber(metric.baseline, language)}</span>
             </div>
           </div>
         </div>
 
-        <div className="mt-3 h-14 w-full" aria-label={`${t(`indicators.${metric.id}`)} 7-day trend`}>
+        <div className="mt-3 h-14 w-full" aria-label={`${t(`indicators.${metric.id}`)} ${t('dashboard.vitalCards.trend7d')}`}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={metric.trend7d} margin={{ top: 4, right: 4, bottom: 2, left: 4 }}>
               <YAxis domain={['auto', 'auto']} hide />
@@ -83,7 +84,7 @@ export const MetricCard: React.FC<{
                   fontSize: '11px',
                   color: '#f8fafc',
                 }}
-                formatter={(v: unknown) => [`${v} ${metric.unit}`, t(`indicators.${metric.id}`)]}
+                formatter={(v: unknown) => [`${typeof v === 'number' ? formatLocaleNumber(v, language) : v} ${metric.unit}`, t(`indicators.${metric.id}`)]}
               />
               <Line
                 type="monotone"
@@ -100,7 +101,7 @@ export const MetricCard: React.FC<{
         {onSelect && (
           <div className="mt-2 flex items-center justify-between border-t border-slate-200/70 pt-2.5 text-xs dark:border-slate-800">
             <span className="font-mono-tabular text-slate-500 dark:text-slate-400">
-              {t('common.confidence')}: {metric.confidence}%
+              {t('common.confidence')}: {formatLocaleNumber(metric.confidence, language)}%
             </span>
             <button
               type="button"

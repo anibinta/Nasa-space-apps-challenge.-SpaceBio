@@ -1,6 +1,11 @@
-import type { StatusLevel } from '../types/health.ts';
+import type { OperationalMode, StatusLevel } from '../types/health.ts';
 
-export type BodyScenarioId = 'nominal' | 'eva' | 'bone_alert' | 'solar_storm';
+export type BodyScenarioId =
+  | 'nominal'
+  | 'eva'
+  | 'bone_alert'
+  | 'solar_storm'
+  | 'orthostatic_test';
 export type BodyOrganFocus = 'heart' | 'lungs' | 'brain' | 'skeleton';
 export type BodyLayerId =
   | 'skeleton'
@@ -26,6 +31,27 @@ export const BODY_HOTSPOT_ORGANS: readonly BodyOrganFocus[] = [
   'skeleton',
 ];
 
+export const SPACE_BODY_SCENARIOS: readonly BodyScenarioId[] = [
+  'nominal',
+  'eva',
+  'bone_alert',
+  'solar_storm',
+];
+
+export const EARTH_BODY_SCENARIOS: readonly BodyScenarioId[] = [
+  'nominal',
+  'orthostatic_test',
+  'bone_alert',
+];
+
+export function getScenariosForMode(mode: OperationalMode): readonly BodyScenarioId[] {
+  return mode === 'earth' ? EARTH_BODY_SCENARIOS : SPACE_BODY_SCENARIOS;
+}
+
+export function getDefaultScenarioForMode(mode: OperationalMode): BodyScenarioId {
+  return mode === 'earth' ? 'orthostatic_test' : DEFAULT_BODY_MAP_SCENARIO;
+}
+
 export interface BodyScenarioState {
   id: BodyScenarioId;
   focusedOrgan: BodyOrganFocus;
@@ -46,6 +72,7 @@ export interface BodyScenarioState {
   intracranialPressureMmHg: number;
   cognitiveIndexPercent: number;
   radiationDoseMsv: number;
+  recoveryScorePercent: number;
   cerebralO2Percent: number;
   femoralBmd: number;
   lumbarBmd: number;
@@ -74,6 +101,7 @@ export const BODY_SCENARIOS: Record<BodyScenarioId, BodyScenarioState> = {
     intracranialPressureMmHg: 11.4,
     cognitiveIndexPercent: 96,
     radiationDoseMsv: 14.2,
+    recoveryScorePercent: 94,
     cerebralO2Percent: 72,
     femoralBmd: 0.94,
     lumbarBmd: 1.06,
@@ -100,6 +128,7 @@ export const BODY_SCENARIOS: Record<BodyScenarioId, BodyScenarioState> = {
     intracranialPressureMmHg: 12.1,
     cognitiveIndexPercent: 93,
     radiationDoseMsv: 14.6,
+    recoveryScorePercent: 89,
     cerebralO2Percent: 70,
     femoralBmd: 0.94,
     lumbarBmd: 1.06,
@@ -126,6 +155,7 @@ export const BODY_SCENARIOS: Record<BodyScenarioId, BodyScenarioState> = {
     intracranialPressureMmHg: 11.6,
     cognitiveIndexPercent: 95,
     radiationDoseMsv: 14.2,
+    recoveryScorePercent: 82,
     cerebralO2Percent: 72,
     femoralBmd: 0.88,
     lumbarBmd: 0.99,
@@ -152,11 +182,39 @@ export const BODY_SCENARIOS: Record<BodyScenarioId, BodyScenarioState> = {
     intracranialPressureMmHg: 13.8,
     cognitiveIndexPercent: 89,
     radiationDoseMsv: 21.8,
+    recoveryScorePercent: 78,
     cerebralO2Percent: 67,
     femoralBmd: 0.94,
     lumbarBmd: 1.05,
     serumCalciumMmol: 2.35,
     vitaminDNgMl: 33,
+  },
+  orthostatic_test: {
+    id: 'orthostatic_test',
+    focusedOrgan: 'heart',
+    status: 'watch',
+    heartRateBpm: 94,
+    spO2Percent: 98,
+    temperatureC: 36.8,
+    systolicBp: 108,
+    diastolicBp: 70,
+    respiratoryRate: 17,
+    breathPeriodSec: 3.2,
+    sleepHours: 7.1,
+    moodScore: 7.9,
+    systolicFlowLpm: 4.6,
+    hrvMs: 44,
+    vitalCapacityL: 4.7,
+    etCo2MmHg: 36,
+    intracranialPressureMmHg: 10.4,
+    cognitiveIndexPercent: 93,
+    radiationDoseMsv: 0.4,
+    recoveryScorePercent: 86,
+    cerebralO2Percent: 71,
+    femoralBmd: 0.92,
+    lumbarBmd: 1.03,
+    serumCalciumMmol: 2.34,
+    vitaminDNgMl: 31,
   },
 };
 
@@ -170,7 +228,9 @@ export function calculateHeartbeatPeriodSeconds(bpm: number): number {
 }
 
 export function calculateBreathingPeriodSeconds(scenario: BodyScenarioId): number {
-  return scenario === 'eva' ? 2.2 : 3.8;
+  if (scenario === 'eva') return 2.2;
+  if (scenario === 'orthostatic_test') return 3.2;
+  return 3.8;
 }
 
 export function getLayerOpacity(
@@ -187,6 +247,7 @@ export function getOrganStatus(
   if (scenario.id === 'nominal') return 'nominal';
   if (organ === scenario.focusedOrgan) return scenario.status;
   if (scenario.id === 'solar_storm' && organ === 'heart') return 'watch';
+  if (scenario.id === 'orthostatic_test' && organ === 'brain') return 'watch';
   return 'nominal';
 }
 
@@ -255,7 +316,6 @@ export function buildWaveformPath(
       const c = Math.cos(t * Math.PI * 7) * 4;
       yOffset = a + b + c;
     } else {
-      // Skeleton ARED axial load curve
       const pulse = Math.pow(Math.max(0, Math.sin(phase * Math.PI)), 1.6);
       yOffset = 12 - pulse * 28;
     }
@@ -328,4 +388,3 @@ export function buildMiniSparklinePath(
     })
     .join(' ');
 }
-

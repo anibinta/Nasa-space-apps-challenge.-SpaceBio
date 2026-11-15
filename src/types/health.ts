@@ -68,7 +68,11 @@ export interface HealthAlert {
   titleKey: string;
   explanationKey: string;
   sourceData: string;
+  sourceKey?: string;
+  sourceParams?: Record<string, string | number>;
   thresholdRule: string; // Always marked "to be validated by an expert"
+  thresholdKey?: string;
+  thresholdParams?: Record<string, string | number>;
   suggestedActionKey: string;
   timestamp: string;
   acknowledged: boolean;
@@ -87,8 +91,10 @@ export interface MissionChangeEntry {
   previousDays: number;
   newDays: number;
   reason: string;
+  reasonKey?: string;
   changedAt: string;
   changedBy: string;
+  changedByKey?: string;
 }
 
 export interface MissionState {
@@ -106,10 +112,12 @@ export interface MissionState {
 export interface BoneTurnoverMarker {
   id: string;
   marker: 'CTX-I' | 'P1NP' | 'Urinary Calcium' | 'Osteocalcin';
+  markerKey?: string;
   value: number;
   unit: string;
   referenceRange: string;
   samplingSource: 'Blood (Dry Spot)' | '24h Urine' | 'Saliva Assay';
+  samplingSourceKey?: string;
   date: string;
   status: StatusLevel;
 }
@@ -117,11 +125,14 @@ export interface BoneTurnoverMarker {
 export interface BoneExamSchedule {
   id: string;
   examType: 'DXA Scan' | 'Heel Ultrasound';
+  examTypeKey?: string;
   phase: 'Pre-flight' | 'In-flight' | 'Post-flight';
+  phaseKey?: string;
   scheduledDay: number;
   scheduledDate: string;
   status: 'completed' | 'scheduled' | 'pending';
   facility: string;
+  facilityKey?: string;
 }
 
 export interface BoneHealthState {
@@ -171,10 +182,14 @@ export interface ReportSectionData {
   metricsSnapshot: {
     labelKey: string;
     value: string;
+    rawValue?: number;
+    unit?: string;
     baselineDelta: string;
+    baselineDeltaKey?: string;
+    baselineDeltaParams?: Record<string, string | number>;
     status: StatusLevel;
   }[];
-  chartSeries: { label: string; value: number; baseline: number }[];
+  chartSeries: { label: string; labelKey?: string; dayNum?: number; weekNum?: number; value: number; baseline: number }[];
 }
 
 export type AttachmentType = 'photo' | 'voice' | 'chart';
@@ -182,7 +197,9 @@ export type AttachmentType = 'photo' | 'voice' | 'chart';
 export interface ChatAttachment {
   type: AttachmentType;
   label: string;
+  labelKey?: string;
   meta: string;
+  metaKey?: string;
 }
 
 export interface ChatMessage {
@@ -191,6 +208,7 @@ export interface ChatMessage {
   senderRole: 'astronaut' | 'doctor';
   senderName: string;
   body: string;
+  bodyKey?: string;
   sentAt: string;
   readAt: string | null;
   estimatedResponseMinutes: number;
@@ -201,14 +219,18 @@ export interface ChatThread {
   id: string;
   doctorName: string;
   doctorSpecialty: string;
+  specialtyKey?: string;
   station: string;
+  stationKey?: string;
   signalDelayLabel: string;
+  signalDelayKey?: string;
   unreadCount: number;
 }
 
 export interface DoctorSlot {
   id: string;
   dateLabel: string;
+  dateIso?: string;
   timeUtc: string;
   doctorName: string;
   available: boolean;
@@ -238,6 +260,7 @@ export interface LearningSite {
   id: string;
   name: string;
   country: string;
+  countryKey?: string;
   syncStatus: 'synchronized' | 'syncing' | 'deferred';
   lastSyncAt: string;
   contributingMissions: number;
@@ -246,6 +269,7 @@ export interface LearningSite {
 
 export interface SubgroupPerformance {
   subgroup: string;
+  subgroupKey?: string;
   sampleCount: number;
   maeLabel: string;
   coveragePercent: number;
@@ -259,10 +283,21 @@ export interface AnomalyRecord {
   indicatorLabel: string;
   indicatorId?: IndicatorId;
   deviationLabel: string;
+  deltaFormatted?: string;
   zScore: number;
   periodLabel: string;
+  startDay?: number;
+  endDay?: number;
   severity: AnomalySeverity;
   sourceData: string;
+  latestValueFormatted?: string;
+  meanFormatted?: string;
+  sdFormatted?: string;
+  unit?: string;
+  latestSource?: MeasurementSource;
+  recentHr?: number[];
+  recentSleep?: number[];
+  recentTemp?: number[];
   suggestedAction: string;
   validationNotice: string; // Always contains "to be validated by an expert"
   patientId?: string;
@@ -274,6 +309,7 @@ export interface AssignedPatient {
   callSign: string;
   age: number;
   missionName: string;
+  missionNameKey?: string;
   mode: OperationalMode;
   missionDay: number;
   plannedDurationDays: number;

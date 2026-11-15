@@ -160,6 +160,7 @@ export function sortAssignedPatientsBySeverity(patients: AssignedPatient[]): Ass
 }
 
 export interface AnonymizedCohortBreakdown {
+  cohortKey?: string;
   cohortLabel: string;
   countLow: number;
   countMedium: number;
@@ -204,6 +205,7 @@ export function buildAnonymizedAdminSummary(input: {
     },
     cohorts: [
       {
+        cohortKey: 'learning.cohorts.spaceflight',
         cohortLabel: 'Spaceflight Cohort (> 20 days)',
         countLow: Math.max(11, input.alertCounts.info),
         countMedium: Math.max(5, input.alertCounts.warning),
@@ -211,6 +213,7 @@ export function buildAnonymizedAdminSummary(input: {
         totalObservations: 1420 + Math.max(0, input.spaceObservations),
       },
       {
+        cohortKey: 'learning.cohorts.earthAnalog',
         cohortLabel: 'Earth Analog Cohort',
         countLow: 7,
         countMedium: 3,
@@ -218,6 +221,7 @@ export function buildAnonymizedAdminSummary(input: {
         totalObservations: 2610 + Math.max(0, input.earthObservations),
       },
       {
+        cohortKey: 'learning.cohorts.postReturn',
         cohortLabel: 'Post-Return Cohort (0–30 days)',
         countLow: 6,
         countMedium: 2,

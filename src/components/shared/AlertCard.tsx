@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import { useTranslation } from '../../i18n';
+import { interpolateTemplate } from '../../i18n/format';
 import type { HealthAlert } from '../../types/health';
 import { Button } from '../ui/button';
 import { SeverityBadge } from './StatusBadge';
@@ -10,6 +11,14 @@ export const AlertCard: React.FC<{
   onAcknowledge?: (id: string) => void;
 }> = ({ alert, onAcknowledge }) => {
   const { t } = useTranslation();
+
+  const sourceText = alert.sourceKey
+    ? interpolateTemplate(t(alert.sourceKey), alert.sourceParams ?? {})
+    : alert.sourceData;
+
+  const thresholdText = alert.thresholdKey
+    ? interpolateTemplate(t(alert.thresholdKey), alert.thresholdParams ?? {})
+    : alert.thresholdRule;
 
   return (
     <div
@@ -40,14 +49,14 @@ export const AlertCard: React.FC<{
           <span className="font-medium text-slate-500 dark:text-slate-400">
             {t('common.source')}:{' '}
           </span>
-          <span className="text-slate-800 dark:text-slate-200">{alert.sourceData}</span>
+          <span className="text-slate-800 dark:text-slate-200">{sourceText}</span>
         </div>
         <div>
           <span className="font-medium text-slate-500 dark:text-slate-400">
             {t('common.threshold')}:{' '}
           </span>
           <span className="font-mono-tabular text-slate-800 dark:text-slate-200">
-            {alert.thresholdRule}
+            {thresholdText}
           </span>
         </div>
       </div>

@@ -114,7 +114,7 @@ export const WelcomePage: React.FC<{ onContinueAsGuest: () => void }> = ({
         className="relative z-10 w-full max-w-4xl text-center text-xs text-slate-400"
       >
         <span>
-          {t('common.footerImageCaption')} ({selectedBg.label})
+          {t('common.footerImageCaption')} ({t(`common.backgrounds.${selectedBg.id}`)})
         </span>
       </footer>
     </main>

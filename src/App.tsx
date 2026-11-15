@@ -53,7 +53,7 @@ const OnboardingGate: React.FC = () => {
     <OnboardingPage
       onEntered={(chosenRole) => {
         if (chosenRole === 'doctor') navigate('/patients', { replace: true });
-        else if (chosenRole === 'admin') navigate('/network-overview', { replace: true });
+        else if (chosenRole === 'admin') navigate('/partner-sites', { replace: true });
         else navigate('/', { replace: true });
       }}
     />
@@ -65,7 +65,7 @@ const AppRoutes: React.FC = () => {
   const { isGuest, enterGuestMode, onboardingCompleted, language, setLanguage, role } = useSpaceBio();
 
   const defaultRoute =
-    role === 'doctor' ? '/patients' : role === 'admin' ? '/network-overview' : '/';
+    role === 'doctor' ? '/patients' : role === 'admin' ? '/partner-sites' : '/';
 
   return (
     <I18nProvider language={language} setLanguage={setLanguage}>
@@ -193,7 +193,7 @@ const AppRoutes: React.FC = () => {
                 path="/network-overview"
                 element={
                   <RequireRole allowed={['admin']}>
-                    <LearningNetworkPage section="overview" />
+                    <Navigate to="/partner-sites" replace />
                   </RequireRole>
                 }
               />
@@ -225,7 +225,7 @@ const AppRoutes: React.FC = () => {
                 path="/learning-network"
                 element={
                   <RequireRole allowed={['admin']}>
-                    <LearningNetworkPage section="overview" />
+                    <Navigate to="/partner-sites" replace />
                   </RequireRole>
                 }
               />

@@ -12,7 +12,7 @@ export const AccessDeniedScreen: React.FC = () => {
   const navigate = useNavigate();
 
   const homePath =
-    role === 'doctor' ? '/patients' : role === 'admin' ? '/network-overview' : '/';
+    role === 'doctor' ? '/patients' : role === 'admin' ? '/partner-sites' : '/';
 
   return (
     <Card data-testid="access-denied-screen" className="border-rose-500/40">

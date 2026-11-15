@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Layers } from 'lucide-react';
 import { useTranslation } from '../../i18n';
+import { formatLocaleNumber } from '../../i18n/format';
 import {
   BODY_LAYER_IDS,
   calculateBreathingPeriodSeconds,
   calculateHeartbeatPeriodSeconds,
   getLayerOpacity,
+  SPACE_BODY_SCENARIOS,
   type BodyLayerId,
   type BodyOrganFocus,
   type BodyScenarioId,
@@ -16,6 +18,7 @@ import { cn } from '../ui/cn';
 interface HolographicBodyMonitorProps {
   scenarioId: BodyScenarioId;
   scenario: BodyScenarioState;
+  availableScenarios?: readonly BodyScenarioId[];
   onScenarioChange: (next: BodyScenarioId) => void;
   focusedOrgan: BodyOrganFocus;
   onSelectOrgan: (organ: BodyOrganFocus) => void;
@@ -71,11 +74,12 @@ const HOTSPOT_COORDS: Record<
 export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
   scenarioId,
   scenario,
+  availableScenarios = SPACE_BODY_SCENARIOS,
   onScenarioChange,
   focusedOrgan,
   onSelectOrgan,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [layersOpen, setLayersOpen] = useState(false);
   const [visibleLayers, setVisibleLayers] = useState<Record<BodyLayerId, boolean>>({
     skeleton: true,
@@ -144,7 +148,7 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
             <div
               role="menu"
               data-testid="layers-menu-popover"
-              className="absolute left-0 top-10 z-50 w-48 rounded-xl border border-cyan-400/30 bg-[#0b1424] p-2.5 text-xs text-slate-200 shadow-2xl space-y-1"
+              className="absolute start-0 top-10 z-50 w-48 rounded-xl border border-cyan-400/30 bg-[#0b1424] p-2.5 text-xs text-slate-200 shadow-2xl space-y-1"
             >
               {BODY_LAYER_IDS.map((layerId) => (
                 <label
@@ -177,16 +181,18 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
             onChange={(e) => onScenarioChange(e.target.value as BodyScenarioId)}
             className="h-8 rounded-lg border border-cyan-400/30 bg-[#0b1424] px-3 text-xs font-medium text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
           >
-            <option value="nominal">{t('dashboard.monitor.scenarios.nominal')}</option>
-            <option value="eva">{t('dashboard.monitor.scenarios.eva')}</option>
-            <option value="bone_alert">{t('dashboard.monitor.scenarios.bone_alert')}</option>
-            <option value="solar_storm">{t('dashboard.monitor.scenarios.solar_storm')}</option>
+            {availableScenarios.map((id) => (
+              <option key={id} value={id}>
+                {t(`dashboard.monitor.scenarios.${id}`)}
+              </option>
+            ))}
           </select>
         </div>
 
         {/* Right: Rose badge (or semantic accent) with live BPM + Données simulées */}
         <div className="flex items-center gap-2">
           <span
+            dir="ltr"
             className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold font-mono-tabular"
             style={{
               borderColor: `${accentHex}66`,
@@ -199,7 +205,9 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
               className="h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: accentHex }}
             />
-            <span data-testid="body-bpm-readout">{scenario.heartRateBpm} bpm</span>
+            <span data-testid="body-bpm-readout">
+              {formatLocaleNumber(scenario.heartRateBpm, language)} bpm
+            </span>
           </span>
           <span className="text-[11px] text-slate-400">{t('common.simulatedData')}</span>
         </div>
@@ -207,6 +215,7 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
 
       {/* Central Holographic Body Canvas with soft cyan radial aura behind the body */}
       <div
+        dir="ltr"
         className="relative my-2 flex flex-1 items-center justify-center"
         style={{
           backgroundImage:

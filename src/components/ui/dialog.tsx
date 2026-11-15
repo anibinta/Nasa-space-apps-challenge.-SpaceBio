@@ -40,7 +40,7 @@ export const DialogContent = React.forwardRef<
       {children}
       <DialogPrimitive.Close
         aria-label="Close"
-        className="absolute right-4 top-4 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+        className="absolute end-4 top-4 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
       >
         <X className="h-4 w-4" />
       </DialogPrimitive.Close>
@@ -52,7 +52,7 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
 export const DialogHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   ...props
-}) => <div className={cn('flex flex-col space-y-1.5 text-left', className)} {...props} />;
+}) => <div className={cn('flex flex-col space-y-1.5 text-start', className)} {...props} />;
 
 export const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,

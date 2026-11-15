@@ -18,7 +18,6 @@ import {
   LogOut,
   MessageSquare,
   Moon,
-  Network,
   PhoneCall,
   RefreshCw,
   Repeat,
@@ -37,6 +36,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSpaceBio } from '../../context/SpaceBioContext';
 import { getLanguageOption, SUPPORTED_LANGUAGES } from '../../data/languages';
 import { useTranslation } from '../../i18n';
+import { formatLocaleNumber } from '../../i18n/format';
 import { pickRandomBackground } from '../../lib/backgrounds';
 import type { Language, UserRole } from '../../types/health';
 import { cn } from '../ui/cn';
@@ -81,7 +81,6 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { to: '/settings', labelKey: 'nav.settings', icon: Settings, mobilePrimary: true },
   ],
   admin: [
-    { to: '/network-overview', labelKey: 'nav.networkOverview', icon: Network, mobilePrimary: true },
     { to: '/partner-sites', labelKey: 'nav.partnerSites', icon: Building2, mobilePrimary: true },
     { to: '/model-sync', labelKey: 'nav.modelSync', icon: RefreshCw, mobilePrimary: true },
     { to: '/inclusion', labelKey: 'nav.inclusion', icon: Globe2, mobilePrimary: true },
@@ -128,7 +127,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     effectiveMode,
     profile,
     returnToOnboarding,
-    transitionBanner,
+    transitionBannerKey,
     dismissTransitionBanner,
     syncError,
     clearSyncError,
@@ -176,6 +175,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const roleBadge = ROLE_HEADER_BADGE[role];
   const RoleIcon = roleBadge.icon;
   const activeLangOption = getLanguageOption(language);
+  const modeLabel = effectiveMode === 'space' ? t('common.spaceMode') : t('common.earthMode');
+  const roleHeaderText =
+    role === 'astronaut' ? `${t(roleBadge.labelKey)} · ${modeLabel}` : t(roleBadge.labelKey);
 
   const activeNavAccent =
     role === 'admin'
@@ -220,7 +222,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <div className="relative z-10 flex min-h-screen flex-col lg:flex-row">
         {/* Desktop Sidebar */}
         <aside
-          aria-label="Primary sidebar"
+          aria-label={t('common.primarySidebar')}
           className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-60 lg:shrink-0 lg:flex-col lg:border-e lg:border-slate-200 dark:lg:border-cyan-400/20 lg:bg-white dark:lg:bg-[#08101e]/95"
         >
           <div className="flex h-14 items-center gap-2.5 border-b border-slate-200 px-5 dark:border-cyan-400/20">
@@ -230,7 +232,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </span>
           </div>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Main navigation">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label={t('common.menuNavigation')}>
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -254,14 +256,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             })}
           </nav>
 
-          <div className="border-t border-slate-200 p-4 text-xs text-slate-600 dark:border-cyan-400/20 dark:text-slate-400">
+          <div
+            data-testid="sidebar-mode-footer"
+            className="border-t border-slate-200 p-4 text-xs text-slate-600 dark:border-cyan-400/20 dark:text-slate-400"
+          >
             <div className="font-medium text-slate-900 dark:text-slate-200 truncate">
               {role === 'astronaut' ? mission.name : t(roleBadge.labelKey)}
             </div>
             <div className="mt-1 font-mono-tabular">
-              {effectiveMode === 'space' ? t('common.spaceMode') : t('common.earthMode')}
+              {modeLabel}
               {role === 'astronaut'
-                ? ` · ${t('common.day')} ${mission.currentDay}/${mission.plannedDurationDays}`
+                ? ` · ${t('common.day')} ${formatLocaleNumber(mission.currentDay, language)}/${formatLocaleNumber(mission.plannedDurationDays, language)}`
                 : ''}
             </div>
           </div>
@@ -270,9 +275,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {/* Main Column */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Decluttered Header: role badge, always-visible Urgence à bord, Données simulées badge, Info button, Profile menu */}
-          <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-4 py-1.5 backdrop-blur dark:border-cyan-400/20 dark:bg-[#070d17]/92 dark:text-slate-100 sm:px-6">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex items-center gap-2 lg:hidden shrink-0">
+          <header className="sticky top-0 z-30 flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur dark:border-cyan-400/20 dark:bg-[#070d17]/92 dark:text-slate-100 sm:flex-nowrap sm:px-6 sm:py-1.5">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+              <div className="flex items-center gap-1.5 lg:hidden shrink-0">
                 <Rocket className="h-4 w-4 text-cyan-400" aria-hidden="true" />
                 <span className="font-bold tracking-tight text-slate-900 dark:text-white">
                   {t('common.brand')}
@@ -281,14 +286,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
               <span
                 data-testid="header-role-badge"
-                title={t(roleBadge.labelKey)}
+                title={roleHeaderText}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold shrink-0 sm:px-2.5',
                   roleBadge.badgeClass
                 )}
               >
                 <RoleIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="hidden sm:inline">{t(roleBadge.labelKey)}</span>
+                <span className="hidden sm:inline">{roleHeaderText}</span>
               </span>
 
               <span
@@ -299,7 +304,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="ms-auto flex max-w-full items-center gap-1.5 sm:gap-2 shrink-0">
               {/* Always-visible On-board Emergency button */}
               <Dialog>
                 <DialogTrigger asChild>
@@ -353,7 +358,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     role="dialog"
                     data-testid="header-info-panel"
                     aria-label={t('header.infoPanelTitle')}
-                    className="absolute right-0 top-10 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-cyan-400/30 bg-white p-4 text-xs shadow-xl dark:bg-[#0b1424] dark:text-slate-200 space-y-3"
+                    className="absolute end-0 top-10 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-cyan-400/30 bg-white p-4 text-xs shadow-xl dark:bg-[#0b1424] dark:text-slate-200 space-y-3"
                   >
                     <div className="flex items-center justify-between gap-2 font-semibold text-slate-900 dark:text-white">
                       <span className="flex items-center gap-1.5">
@@ -363,7 +368,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       <button
                         type="button"
                         onClick={() => setInfoOpen(false)}
-                        aria-label="Close"
+                        aria-label={t('common.close')}
                         className="rounded p-1 hover:bg-slate-200/60 dark:hover:bg-slate-800"
                       >
                         <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -419,7 +424,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   <div
                     role="menu"
                     data-testid="profile-menu-dropdown"
-                    className="absolute right-0 top-10 z-50 w-64 rounded-xl border border-cyan-400/30 bg-white p-3 text-xs shadow-xl dark:bg-[#0b1424] dark:text-slate-200 space-y-2.5"
+                    className="absolute end-0 top-10 z-50 w-64 rounded-xl border border-cyan-400/30 bg-white p-3 text-xs shadow-xl dark:bg-[#0b1424] dark:text-slate-200 space-y-2.5"
                   >
                     <button
                       type="button"
@@ -429,7 +434,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                         setProfileOpen(false);
                         returnToOnboarding();
                       }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-medium hover:bg-slate-100 dark:hover:bg-cyan-500/10"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start font-medium hover:bg-slate-100 dark:hover:bg-cyan-500/10"
                     >
                       <Repeat className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
                       <span>{t('header.switchRole')}</span>
@@ -452,7 +457,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       >
                         {SUPPORTED_LANGUAGES.map((l) => (
                           <option key={l.code} value={l.code}>
-                            {l.code.toUpperCase()} — {l.name}
+                            {l.code.toUpperCase()} — {l.nativeName}
                           </option>
                         ))}
                       </select>
@@ -492,7 +497,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                             setProfileOpen(false);
                             void signOutUser();
                           }}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-medium text-rose-600 hover:bg-rose-500/10 dark:text-rose-300"
+                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start font-medium text-rose-600 hover:bg-rose-500/10 dark:text-rose-300"
                         >
                           <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>{t('common.signOut')}</span>
@@ -506,7 +511,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                             setProfileOpen(false);
                             exitGuestMode();
                           }}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-medium text-amber-700 hover:bg-amber-500/10 dark:text-amber-300"
+                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start font-medium text-amber-700 hover:bg-amber-500/10 dark:text-amber-300"
                         >
                           <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>{t('welcome.exitGuest')}</span>
@@ -520,7 +525,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                             setProfileOpen(false);
                             void signInWithGoogle();
                           }}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left font-medium text-cyan-700 hover:bg-cyan-500/10 dark:text-cyan-300"
+                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start font-medium text-cyan-700 hover:bg-cyan-500/10 dark:text-cyan-300"
                         >
                           <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>{authBusy ? t('common.signingIn') : t('common.signIn')}</span>
@@ -534,17 +539,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           </header>
 
           {/* Auto-dismissing 3-second role connection confirmation toast */}
-          {transitionBanner && (
+          {transitionBannerKey && (
             <div
               role="status"
               data-testid="role-transition-banner"
-              className="fixed right-4 top-16 z-40 flex items-center gap-2.5 rounded-lg border border-cyan-400/40 bg-[#0b1424]/95 px-3.5 py-2 text-xs font-medium text-cyan-200 shadow-lg"
+              className="fixed end-4 top-16 z-40 flex items-center gap-2.5 rounded-lg border border-cyan-400/40 bg-[#0b1424]/95 px-3.5 py-2 text-xs font-medium text-cyan-200 shadow-lg"
             >
-              <span>{transitionBanner}</span>
+              <span>{t(transitionBannerKey)}</span>
               <button
                 type="button"
                 onClick={dismissTransitionBanner}
-                aria-label="Dismiss"
+                aria-label={t('common.dismiss')}
                 className="rounded p-0.5 hover:bg-cyan-500/20"
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -599,7 +604,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     clearAuthError();
                     clearSyncError();
                   }}
-                  aria-label="Dismiss message"
+                  aria-label={t('common.dismiss')}
                   className="rounded p-1 hover:bg-rose-500/10"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -626,7 +631,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 </p>
               )}
               <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                {t('common.footerImageCaption')} ({selectedBg.label})
+                {t('common.footerImageCaption')} ({t(`common.backgrounds.${selectedBg.id}`)})
               </div>
             </footer>
           </main>

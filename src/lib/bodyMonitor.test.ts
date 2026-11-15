@@ -10,10 +10,12 @@ import {
   DEFAULT_BODY_MAP_SCENARIO,
   evaluateVitalCardStatus,
   extractSevenDayTrend,
+  getDefaultScenarioForMode,
   getLayerOpacity,
   getOrganStatus,
   getOrganWaveformType,
   getScenarioState,
+  getScenariosForMode,
 } from './bodyMonitor.ts';
 
 test('heartbeat and breathing periods obey exact physics formulas', () => {
@@ -53,6 +55,19 @@ test('scenarios dynamically drive focused organ, BPM, and status color', () => {
   assert.equal(storm.focusedOrgan, 'brain');
   assert.equal(storm.heartRateBpm, 86);
   assert.equal(getOrganStatus('brain', storm), 'alert');
+});
+
+test('mode-specific scenario lists separate Space orbital scenarios from Earth reconditioning scenarios', () => {
+  const spaceScenarios = getScenariosForMode('space');
+  const earthScenarios = getScenariosForMode('earth');
+  assert.ok(spaceScenarios.includes('solar_storm'));
+  assert.ok(spaceScenarios.includes('eva'));
+  assert.ok(!spaceScenarios.includes('orthostatic_test'));
+  assert.ok(earthScenarios.includes('orthostatic_test'));
+  assert.ok(!earthScenarios.includes('solar_storm'));
+  assert.ok(!earthScenarios.includes('eva'));
+  assert.equal(getDefaultScenarioForMode('space'), 'solar_storm');
+  assert.equal(getDefaultScenarioForMode('earth'), 'orthostatic_test');
 });
 
 test('body map defaults to solar_storm scenario (86 bpm) with heart selected initially', () => {
@@ -96,3 +111,4 @@ test('each organ maps to its dedicated clinical waveform curve', () => {
     assert.ok(path.includes('L260,'));
   }
 });
+

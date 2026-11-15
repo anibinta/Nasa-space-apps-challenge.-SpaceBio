@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, FileText, Stethoscope } from 'lucide-react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber } from '../i18n/format';
 import type { AlertSeverity } from '../types/health';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -16,7 +17,7 @@ const SEV_BADGE: Record<AlertSeverity, string> = {
 
 export const DoctorPatientsPage: React.FC = () => {
   const { assignedPatients, setSelectedPatientId } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
 
   return (
@@ -67,12 +68,22 @@ export const DoctorPatientsPage: React.FC = () => {
                     <CardTitle className="text-lg">
                       {pat.fullName}{' '}
                       <span className="font-mono-tabular text-xs font-normal text-slate-500 dark:text-slate-400">
-                        ({pat.callSign} · {pat.age}y)
+                        ({pat.callSign} · {formatLocaleNumber(pat.age, language)} {t('common.yearsShort')})
                       </span>
                     </CardTitle>
                     <CardDescription>
-                      {pat.missionName} · {t('common.day')} {pat.missionDay}/{pat.plannedDurationDays} ·{' '}
-                      {pat.mode === 'space' ? t('common.spaceMode') : t('common.earthMode')}
+                      {pat.missionNameKey ? t(pat.missionNameKey) : pat.missionName} ·{' '}
+                      {t('common.day')} {formatLocaleNumber(pat.missionDay, language)}/
+                      {formatLocaleNumber(pat.plannedDurationDays, language)} ·{' '}
+                      <span
+                        className={`font-semibold ${
+                          pat.mode === 'space'
+                            ? 'text-cyan-700 dark:text-cyan-300'
+                            : 'text-emerald-700 dark:text-emerald-300'
+                        }`}
+                      >
+                        {pat.mode === 'space' ? t('common.spaceMode') : t('common.earthMode')}
+                      </span>
                     </CardDescription>
                   </div>
 
@@ -87,10 +98,12 @@ export const DoctorPatientsPage: React.FC = () => {
               <CardContent className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-6 text-xs font-mono-tabular text-slate-600 dark:text-slate-300">
                   <span>
-                    {t('doctor.activeAlerts')}: <strong>{pat.activeAlertsCount}</strong>
+                    {t('doctor.activeAlerts')}:{' '}
+                    <strong>{formatLocaleNumber(pat.activeAlertsCount, language)}</strong>
                   </span>
                   <span>
-                    {t('doctor.boneRisk')}: <strong>{pat.boneRiskEstimatePercent}%</strong>
+                    {t('doctor.boneRisk')}:{' '}
+                    <strong dir="ltr">{formatLocaleNumber(pat.boneRiskEstimatePercent, language)}%</strong>
                   </span>
                   <span>{t('common.simulatedData')}</span>
                 </div>
@@ -104,7 +117,7 @@ export const DoctorPatientsPage: React.FC = () => {
                   }}
                 >
                   <span>{t('doctor.viewFile')}</span>
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
                 </Button>
               </CardContent>
             </Card>
@@ -114,3 +127,4 @@ export const DoctorPatientsPage: React.FC = () => {
     </motion.div>
   );
 };
+

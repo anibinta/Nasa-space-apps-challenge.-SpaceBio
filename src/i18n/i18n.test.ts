@@ -12,6 +12,7 @@ import { ur } from './ur.ts';
 import { wo } from './wo.ts';
 import { zh } from './zh.ts';
 import { SUPPORTED_LANGUAGES } from '../data/languages.ts';
+import { addDaysToIso, formatLocaleDate, formatLocaleNumber, interpolateTemplate } from './format.ts';
 import type { Language } from '../types/health.ts';
 
 const ALL_DICTS: Record<Language, typeof en> = {
@@ -71,3 +72,50 @@ test('all 11 supported languages are marked fullyTranslated and provide complete
     }
   }
 });
+
+test('non-French dictionaries do not leak French monitor labels and non-English dictionaries translate key headers', () => {
+  for (const lang of SUPPORTED_LANGUAGES) {
+    const dict = ALL_DICTS[lang.code];
+    if (lang.code !== 'fr') {
+      assert.notEqual(
+        dict.dashboard.monitor.layersBtn,
+        'Calques',
+        `French string 'Calques' leaked into ${lang.code}`
+      );
+      assert.notEqual(
+        dict.settings.sexOptions.female,
+        'Femme',
+        `French sex option leaked into ${lang.code}`
+      );
+    }
+    if (lang.code !== 'en') {
+      assert.notEqual(
+        dict.dashboard.monitor.layersBtn,
+        'Layers',
+        `English string 'Layers' untranslated in ${lang.code}`
+      );
+      assert.notEqual(
+        dict.settings.sexOptions.female,
+        'Female',
+        `English sex option 'Female' leaked into ${lang.code}`
+      );
+    }
+  }
+});
+
+test('i18n format helpers handle date arithmetic, template interpolation, and all 11 locales', () => {
+  assert.equal(addDaysToIso('2026-10-16', 60), '2026-12-15');
+  assert.equal(addDaysToIso('2026-10-16', 0), '2026-10-16');
+  assert.equal(
+    interpolateTemplate('Days {{start}}–{{end}} · avg {{avg}} h', { start: 26, end: 28, avg: 5.9 }),
+    'Days 26–28 · avg 5.9 h'
+  );
+
+  for (const lang of SUPPORTED_LANGUAGES) {
+    const formattedNum = formatLocaleNumber(14.2, lang.code);
+    assert.ok(formattedNum.length > 0);
+    const formattedDate = formatLocaleDate('2026-11-13', lang.code);
+    assert.ok(formattedDate.length > 0);
+  }
+});
+

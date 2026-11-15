@@ -149,14 +149,14 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
     if (!isFormValid) return;
 
     const effectiveMode: OperationalMode = selectedRole === 'astronaut' ? selectedMode : 'earth';
-    let banner = t('onboarding.bannerAdmin');
+    let bannerKey = 'onboarding.bannerAdmin';
     if (selectedRole === 'astronaut') {
-      banner =
+      bannerKey =
         effectiveMode === 'space'
-          ? t('onboarding.bannerAstronautSpace')
-          : t('onboarding.bannerAstronautEarth');
+          ? 'onboarding.bannerAstronautSpace'
+          : 'onboarding.bannerAstronautEarth';
     } else if (selectedRole === 'doctor') {
-      banner = t('onboarding.bannerDoctor');
+      bannerKey = 'onboarding.bannerDoctor';
     }
 
     completeOnboarding(
@@ -171,7 +171,7 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
         startDate,
         plannedDurationDays: Math.max(1, Math.round(parsedPlannedDays || 60)),
       },
-      banner
+      bannerKey
     );
     onEntered?.(selectedRole);
   };
@@ -252,7 +252,7 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
                       setSelectedRole(card.id);
                     }}
                     className={cn(
-                      'flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                      'flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                       active
                         ? card.accentClasses
                         : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-[#0d162d] dark:hover:border-slate-700'
@@ -286,14 +286,14 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+                <Search className="pointer-events-none absolute start-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
                 <Input
                   type="search"
                   aria-label={t('onboarding.languageSection')}
                   placeholder={t('onboarding.languageSearchPlaceholder')}
                   value={langQuery}
                   onChange={(e) => setLangQuery(e.target.value)}
-                  className="pl-9"
+                  className="ps-9"
                 />
               </div>
 
@@ -308,7 +308,7 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
                       data-testid={`lang-option-${langOpt.code}`}
                       onClick={() => handleLanguagePick(langOpt.code)}
                       className={cn(
-                        'flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                        'flex flex-col items-start gap-2 rounded-lg border p-3 text-start text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                         active
                           ? 'border-cyan-500 bg-cyan-500/15 text-slate-950 dark:text-white'
                           : 'border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60'
@@ -402,7 +402,7 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
                       setSelectedMode('space');
                     }}
                     className={cn(
-                      'flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                      'flex items-start gap-3 rounded-xl border-2 p-4 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                       selectedMode === 'space'
                         ? 'border-cyan-500 bg-cyan-500/15'
                         : 'border-slate-200 dark:border-slate-800'
@@ -426,7 +426,7 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
                       setSelectedMode('earth');
                     }}
                     className={cn(
-                      'flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400',
+                      'flex items-start gap-3 rounded-xl border-2 p-4 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400',
                       selectedMode === 'earth'
                         ? 'border-emerald-500 bg-emerald-500/15'
                         : 'border-slate-200 dark:border-slate-800'
@@ -518,7 +518,7 @@ export const OnboardingPage: React.FC<{ onEntered?: (role: UserRole) => void }> 
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-300/60 pt-4 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
           <span>
-            {t('common.footerImageCaption')} ({selectedBg.label})
+            {t('common.footerImageCaption')} ({t(`common.backgrounds.${selectedBg.id}`)})
           </span>
           <span>{t('common.brand')} · {t('common.simulatedData')}</span>
         </footer>

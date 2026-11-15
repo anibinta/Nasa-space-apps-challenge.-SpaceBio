@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Camera, CheckCircle2, Mic, ScanLine, AlertCircle } from 'lucide-react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber } from '../i18n/format';
 import {
   evaluateIndicatorStatus,
   INDICATOR_CONFIGS,
@@ -27,7 +28,7 @@ const ENTRY_INDICATORS: IndicatorId[] = [
 
 export const MeasurementsPage: React.FC = () => {
   const { isGuest, measurements, addMeasurement, mission } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   // Manual entry state
   const [indicator, setIndicator] = useState<IndicatorId>('heart_rate');
@@ -107,7 +108,7 @@ export const MeasurementsPage: React.FC = () => {
         value: hr,
         source: 'contactless',
         confidence: confidence + 6,
-        notes: 'Contactless optical + vocal breath check',
+        notes: t('measurements.scanNoteHr'),
       });
       addMeasurement({
         indicator: 'blood_pressure_sys',
@@ -115,7 +116,7 @@ export const MeasurementsPage: React.FC = () => {
         secondaryValue: dia,
         source: 'contactless',
         confidence,
-        notes: 'Camera-estimated pulse transit check',
+        notes: t('measurements.scanNoteBp'),
       });
 
       setLastScanResult({ sys, dia, hr, confidence });
@@ -165,7 +166,8 @@ export const MeasurementsPage: React.FC = () => {
             <CardHeader>
               <CardTitle>{t('measurements.manualTab')}</CardTitle>
               <CardDescription>
-                {t('common.simulatedData')} · {t('common.day')} {mission.currentDay}
+                {t('common.simulatedData')} · {t('common.day')}{' '}
+                {formatLocaleNumber(mission.currentDay, language)}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -210,8 +212,10 @@ export const MeasurementsPage: React.FC = () => {
                       required
                     />
                     <p className="text-xs font-mono-tabular text-slate-500 dark:text-slate-400">
-                      {t('dashboard.referenceRange')}: {cfg.refMin}–{cfg.refMax} {cfg.unit} (
-                      {cfg.minValid}–{cfg.maxValid})
+                      {t('dashboard.referenceRange')}:{' '}
+                      <span dir="ltr">
+                        {formatLocaleNumber(cfg.refMin, language)}–{formatLocaleNumber(cfg.refMax, language)} {cfg.unit} ({formatLocaleNumber(cfg.minValid, language)}–{formatLocaleNumber(cfg.maxValid, language)})
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -298,9 +302,9 @@ export const MeasurementsPage: React.FC = () => {
                       <line x1="104" y1="22" x2="120" y2="22" stroke="#f59e0b" strokeWidth="2" />
                     </svg>
                     <ol className="space-y-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-                      <li>1. {t('measurements.contactlessGuideSteps.step1')}</li>
-                      <li>2. {t('measurements.contactlessGuideSteps.step2')}</li>
-                      <li>3. {t('measurements.contactlessGuideSteps.step3')}</li>
+                      <li>{formatLocaleNumber(1, language)}. {t('measurements.contactlessGuideSteps.step1')}</li>
+                      <li>{formatLocaleNumber(2, language)}. {t('measurements.contactlessGuideSteps.step2')}</li>
+                      <li>{formatLocaleNumber(3, language)}. {t('measurements.contactlessGuideSteps.step3')}</li>
                     </ol>
                   </div>
                 </div>
@@ -354,14 +358,21 @@ export const MeasurementsPage: React.FC = () => {
                       className="rounded-lg border border-cyan-500/35 bg-cyan-500/10 p-3 text-xs space-y-1"
                     >
                       <div className="font-semibold text-cyan-900 dark:text-cyan-200">
-                        {t('common.simulatedData')} · {t('common.confidence')}: {lastScanResult.confidence}%
+                        {t('common.simulatedData')} · {t('common.confidence')}:{' '}
+                        {formatLocaleNumber(lastScanResult.confidence, language)}%
                       </div>
                       <div className="font-mono-tabular text-slate-800 dark:text-slate-200">
-                        {t('indicators.blood_pressure_sys')}: {lastScanResult.sys}/{lastScanResult.dia} mmHg (
+                        {t('indicators.blood_pressure_sys')}:{' '}
+                        <span dir="ltr">
+                          {formatLocaleNumber(lastScanResult.sys, language)}/
+                          {formatLocaleNumber(lastScanResult.dia, language)} mmHg
+                        </span>{' '}
+                        (
                         <span className="font-semibold text-amber-700 dark:text-amber-300">
                           {t('common.indicative')}
                         </span>
-                        ) · {t('indicators.heart_rate')}: {lastScanResult.hr} bpm
+                        ) · {t('indicators.heart_rate')}:{' '}
+                        <span dir="ltr">{formatLocaleNumber(lastScanResult.hr, language)} bpm</span>
                       </div>
                     </div>
                   )}
@@ -444,15 +455,15 @@ export const MeasurementsPage: React.FC = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                    <th className="py-2.5 pr-4 font-medium">{t('common.day')}</th>
-                    <th className="py-2.5 pr-4 font-medium">{t('measurements.indicatorLabel')}</th>
-                    <th className="py-2.5 pr-4 font-medium text-right">{t('measurements.valueLabel')}</th>
-                    <th className="py-2.5 pr-4 font-medium">{t('common.source')}</th>
-                    <th className="py-2.5 pr-4 font-medium text-right">{t('common.confidence')}</th>
-                    <th className="py-2.5 font-medium">{t('bone.tableHeaders.status')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('common.day')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('measurements.indicatorLabel')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-end">{t('measurements.valueLabel')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('common.source')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-end">{t('common.confidence')}</th>
+                    <th className="py-2.5 font-medium text-start">{t('bone.tableHeaders.status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
@@ -460,32 +471,33 @@ export const MeasurementsPage: React.FC = () => {
                     const status = evaluateIndicatorStatus(rec.indicator, rec.value);
                     return (
                       <tr key={rec.id} className="hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
-                        <td className="py-2.5 pr-4 font-mono-tabular text-xs text-slate-500 dark:text-slate-400">
-                          D{rec.missionDay}
+                        <td className="py-2.5 pe-4 font-mono-tabular text-xs text-slate-500 dark:text-slate-400">
+                          {t('common.dayShort')}
+                          {formatLocaleNumber(rec.missionDay, language)}
                         </td>
-                        <td className="py-2.5 pr-4 font-medium text-slate-900 dark:text-slate-100">
+                        <td className="py-2.5 pe-4 font-medium text-slate-900 dark:text-slate-100">
                           {t(`indicators.${rec.indicator}`)}
                         </td>
-                        <td className="py-2.5 pr-4 text-right font-mono-tabular font-semibold">
+                        <td className="py-2.5 pe-4 text-end font-mono-tabular font-semibold" dir="ltr">
                           {rec.secondaryValue !== undefined
-                            ? `${rec.value}/${rec.secondaryValue}`
-                            : rec.value}{' '}
+                            ? `${formatLocaleNumber(rec.value, language)}/${formatLocaleNumber(rec.secondaryValue, language)}`
+                            : formatLocaleNumber(rec.value, language)}{' '}
                           <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                             {rec.unit}
                           </span>
                         </td>
-                        <td className="py-2.5 pr-4 text-xs text-slate-600 dark:text-slate-300">
+                        <td className="py-2.5 pe-4 text-xs text-slate-600 dark:text-slate-300">
                           {rec.source === 'contactless'
                             ? t('common.contactless')
                             : t('common.manual')}
                           {rec.indicative && (
-                            <span className="ml-1.5 font-semibold text-amber-700 dark:text-amber-300">
+                            <span className="ms-1.5 font-semibold text-amber-700 dark:text-amber-300">
                               · {t('common.indicative')}
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 pr-4 text-right font-mono-tabular text-xs">
-                          {rec.confidence}%
+                        <td className="py-2.5 pe-4 text-end font-mono-tabular text-xs">
+                          {formatLocaleNumber(rec.confidence, language)}%
                         </td>
                         <td className="py-2.5">
                           <StatusBadge status={status} />
@@ -502,3 +514,4 @@ export const MeasurementsPage: React.FC = () => {
     </motion.div>
   );
 };
+

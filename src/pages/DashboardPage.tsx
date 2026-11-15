@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { addDaysToIso, formatLocaleDate, formatLocaleNumber } from '../i18n/format';
 import {
   buildMiniSparklinePath,
   evaluateVitalCardStatus,
@@ -34,12 +35,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { DoctorPatientsPage } from './DoctorPatientsPage';
 import { LearningNetworkPage } from './LearningNetworkPage';
 
-const MILESTONE_POSITIONS = [
+const SPACE_MILESTONE_POSITIONS = [
   { key: 'launch', pct: 0 },
   { key: 'adaptation', pct: 25 },
   { key: 'midMission', pct: 50 },
   { key: 'returnPrep', pct: 75 },
   { key: 'landing', pct: 100 },
+];
+
+const EARTH_MILESTONE_POSITIONS = [
+  { key: 'landing', pct: 0 },
+  { key: 'rehab', pct: 25 },
+  { key: 'consolidation', pct: 50 },
+  { key: 'activity', pct: 75 },
+  { key: 'followUpEnd', pct: 100 },
 ];
 
 function computeCountdownParts(departureDate: string, plannedDurationDays: number, nowMs: number) {
@@ -71,7 +80,7 @@ export const DashboardPage: React.FC = () => {
     dailyMetrics,
     profile,
   } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
 
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -141,7 +150,7 @@ export const DashboardPage: React.FC = () => {
     return <DoctorPatientsPage />;
   }
   if (role === 'admin') {
-    return <LearningNetworkPage section="overview" />;
+    return <LearningNetworkPage section="sites" />;
   }
 
   const progress = calculateMissionProgress(mission);
@@ -151,12 +160,15 @@ export const DashboardPage: React.FC = () => {
     nowMs
   );
   const utcClock = new Date(nowMs).toISOString().slice(11, 19);
+  const scheduledEndIso = addDaysToIso(mission.departureDate, mission.plannedDurationDays);
+  const milestones =
+    effectiveMode === 'earth' ? EARTH_MILESTONE_POSITIONS : SPACE_MILESTONE_POSITIONS;
 
   const vitalCards = [
     {
       id: 'heart_rate' as const,
       label: t('indicators.heart_rate'),
-      value: `${latestVitals.heartRateBpm}`,
+      value: formatLocaleNumber(latestVitals.heartRateBpm, language),
       unit: 'bpm',
       refRange: t('dashboard.vitalCards.hrRef'),
       status: evaluateVitalCardStatus('heart_rate', latestVitals.heartRateBpm),
@@ -165,7 +177,7 @@ export const DashboardPage: React.FC = () => {
     {
       id: 'spo2' as const,
       label: t('dashboard.monitor.spO2'),
-      value: `${latestVitals.spO2Percent}`,
+      value: formatLocaleNumber(latestVitals.spO2Percent, language),
       unit: '%',
       refRange: t('dashboard.vitalCards.spO2Ref'),
       status: evaluateVitalCardStatus('spo2', latestVitals.spO2Percent),
@@ -174,7 +186,10 @@ export const DashboardPage: React.FC = () => {
     {
       id: 'body_temperature' as const,
       label: t('indicators.body_temperature'),
-      value: `${latestVitals.temperatureC}`,
+      value: formatLocaleNumber(latestVitals.temperatureC, language, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }),
       unit: '°C',
       refRange: t('dashboard.vitalCards.tempRef'),
       status: evaluateVitalCardStatus('body_temperature', latestVitals.temperatureC),
@@ -183,7 +198,7 @@ export const DashboardPage: React.FC = () => {
     {
       id: 'blood_pressure_sys' as const,
       label: t('indicators.blood_pressure_sys'),
-      value: `${latestVitals.systolicBp}/${latestVitals.diastolicBp}`,
+      value: `${formatLocaleNumber(latestVitals.systolicBp, language)}/${formatLocaleNumber(latestVitals.diastolicBp, language)}`,
       unit: 'mmHg',
       refRange: t('dashboard.vitalCards.bpRef'),
       status: evaluateVitalCardStatus('blood_pressure_sys', latestVitals.systolicBp),
@@ -193,27 +208,27 @@ export const DashboardPage: React.FC = () => {
 
   const vitalsBarData = [
     {
-      key: 'FC',
+      key: t('dashboard.vitalCards.barHr'),
       pct: Math.min(100, Math.round((latestVitals.heartRateBpm / 130) * 100)),
-      raw: `${latestVitals.heartRateBpm} bpm`,
+      raw: `${formatLocaleNumber(latestVitals.heartRateBpm, language)} bpm`,
       status: vitalCards[0].status,
     },
     {
-      key: 'SpO2',
+      key: t('dashboard.monitor.spO2'),
       pct: latestVitals.spO2Percent,
-      raw: `${latestVitals.spO2Percent}%`,
+      raw: `${formatLocaleNumber(latestVitals.spO2Percent, language)}%`,
       status: vitalCards[1].status,
     },
     {
-      key: 'Temp',
+      key: t('dashboard.vitalCards.barTemp'),
       pct: Math.min(100, Math.max(20, Math.round(((latestVitals.temperatureC - 35) / 4) * 100))),
-      raw: `${latestVitals.temperatureC} °C`,
+      raw: `${formatLocaleNumber(latestVitals.temperatureC, language, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} °C`,
       status: vitalCards[2].status,
     },
     {
-      key: 'TA',
+      key: t('dashboard.vitalCards.barBp'),
       pct: Math.min(100, Math.round((latestVitals.systolicBp / 160) * 100)),
-      raw: `${latestVitals.systolicBp}/${latestVitals.diastolicBp} mmHg`,
+      raw: `${formatLocaleNumber(latestVitals.systolicBp, language)}/${formatLocaleNumber(latestVitals.diastolicBp, language)} mmHg`,
       status: vitalCards[3].status,
     },
   ];
@@ -239,7 +254,7 @@ export const DashboardPage: React.FC = () => {
                     {mission.name}
                   </h1>
                   <span className="rounded border border-cyan-400/25 bg-cyan-500/10 px-2 py-0.5 font-mono-tabular text-xs font-semibold text-cyan-700 dark:text-cyan-300">
-                    {t('common.day')} {mission.currentDay}/{mission.plannedDurationDays}
+                    {t('common.day')} {formatLocaleNumber(mission.currentDay, language)}/{formatLocaleNumber(mission.plannedDurationDays, language)}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
                     · {profile.fullName}
@@ -270,9 +285,9 @@ export const DashboardPage: React.FC = () => {
                     >
                       <Thermometer className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>
-                        {earthSiteEnvironment.siteName} ·{' '}
+                        {t('dashboard.earthEnv.siteName')} ·{' '}
                         <span dir="ltr">
-                          {earthSiteEnvironment.temperatureC}°C · {earthSiteEnvironment.humidityPercent}% RH
+                          {formatLocaleNumber(earthSiteEnvironment.temperatureC, language, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}°C · {formatLocaleNumber(earthSiteEnvironment.humidityPercent, language)}% {t('dashboard.earthEnv.rhUnit')}
                         </span>
                       </span>
                     </div>
@@ -284,7 +299,7 @@ export const DashboardPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-baseline gap-1.5 font-mono-tabular">
                 <span className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">
-                  {progress.percentComplete}%
+                  {formatLocaleNumber(progress.percentComplete, language)}%
                 </span>
                 <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   {t('dashboard.missionBanner.complete')}
@@ -304,43 +319,78 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-12 lg:items-center">
-            <div
-              data-testid="mission-countdown"
-              className="lg:col-span-5 rounded-lg border border-cyan-400/20 bg-slate-50 px-3.5 py-2.5 dark:bg-[#070d17]/75"
-            >
-              {countdown.reachedZero && !mission.actualDurationDays ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-amber-300">
-                  <span>{t('countdown.reachedBanner')}</span>
-                  <Button type="button" size="sm" variant="amber" onClick={() => navigate('/mission')}>
-                    {t('countdown.goToMission')}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {t('countdown.title')}
-                  </span>
-                  <div className="flex items-center gap-2 font-mono-tabular text-sm font-bold text-slate-900 dark:text-white">
-                    <span>
-                      {countdown.days}
-                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">j</span>
+            {effectiveMode === 'space' ? (
+              <div
+                data-testid="mission-countdown"
+                className="lg:col-span-5 rounded-lg border border-cyan-400/20 bg-slate-50 px-3.5 py-2.5 dark:bg-[#070d17]/75"
+              >
+                {countdown.reachedZero && !mission.actualDurationDays ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-amber-300">
+                    <span>{t('countdown.reachedBanner')}</span>
+                    <Button type="button" size="sm" variant="amber" onClick={() => navigate('/mission')}>
+                      {t('countdown.goToMission')}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      {t('countdown.title')}
                     </span>
-                    <span>
-                      {String(countdown.hours).padStart(2, '0')}
-                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">h</span>
-                    </span>
-                    <span>
-                      {String(countdown.minutes).padStart(2, '0')}
-                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">m</span>
-                    </span>
-                    <span>
-                      {String(countdown.seconds).padStart(2, '0')}
-                      <span className="ml-0.5 text-[10px] font-normal text-slate-400">s</span>
-                    </span>
+                    <div className="flex items-center gap-2 font-mono-tabular text-sm font-bold text-slate-900 dark:text-white">
+                      <span>
+                        {formatLocaleNumber(countdown.days, language)}
+                        <span className="ms-0.5 text-[10px] font-normal text-slate-400">
+                          {t('countdown.shortDays')}
+                        </span>
+                      </span>
+                      <span>
+                        {formatLocaleNumber(countdown.hours, language, { minimumIntegerDigits: 2 })}
+                        <span className="ms-0.5 text-[10px] font-normal text-slate-400">
+                          {t('countdown.shortHours')}
+                        </span>
+                      </span>
+                      <span>
+                        {formatLocaleNumber(countdown.minutes, language, { minimumIntegerDigits: 2 })}
+                        <span className="ms-0.5 text-[10px] font-normal text-slate-400">
+                          {t('countdown.shortMinutes')}
+                        </span>
+                      </span>
+                      <span>
+                        {formatLocaleNumber(countdown.seconds, language, { minimumIntegerDigits: 2 })}
+                        <span className="ms-0.5 text-[10px] font-normal text-slate-400">
+                          {t('countdown.shortSeconds')}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                data-testid="post-flight-reconditioning"
+                className="lg:col-span-5 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3.5 py-2.5 dark:bg-[#071916]"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                      {t('dashboard.postFlight.title')}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                      {t('dashboard.postFlight.followUpEnd')}: {formatLocaleDate(scheduledEndIso, language)}
+                    </div>
+                  </div>
+                  <div className="text-end font-mono-tabular">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      {t('dashboard.postFlight.daysSinceLanding')}
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">
+                      {formatLocaleNumber(mission.currentDay, language)} /{' '}
+                      {formatLocaleNumber(mission.plannedDurationDays, language)} {t('common.days')}
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="lg:col-span-7 space-y-2">
               <div
@@ -348,11 +398,15 @@ export const DashboardPage: React.FC = () => {
                 aria-valuenow={progress.percentComplete}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`${mission.name} ${progress.percentComplete}% ${t('dashboard.missionBanner.complete')}`}
+                aria-label={`${mission.name} ${formatLocaleNumber(progress.percentComplete, language)}% ${t('dashboard.missionBanner.complete')}`}
                 className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800/90"
               >
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400"
+                  className={
+                    effectiveMode === 'earth'
+                      ? 'h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400'
+                      : 'h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400'
+                  }
                   style={{
                     width: `${progress.percentComplete}%`,
                     transition: reducedMotion ? 'none' : 'width 300ms ease',
@@ -361,8 +415,13 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                {MILESTONE_POSITIONS.map((ms) => {
-                  const reached = progress.completedMilestones.includes(ms.key);
+                {milestones.map((ms, idx) => {
+                  const spaceKey = SPACE_MILESTONE_POSITIONS[idx]?.key ?? ms.key;
+                  const reached = progress.completedMilestones.includes(spaceKey);
+                  const milestonePrefix =
+                    effectiveMode === 'earth'
+                      ? 'dashboard.postFlight.milestones'
+                      : 'dashboard.missionBanner.milestones';
                   return (
                     <div
                       key={ms.key}
@@ -378,7 +437,7 @@ export const DashboardPage: React.FC = () => {
                           reached ? 'bg-cyan-400' : 'bg-slate-400/50 dark:bg-slate-700'
                         }`}
                       />
-                      <span>{t(`dashboard.missionBanner.milestones.${ms.key}`)}</span>
+                      <span>{t(`${milestonePrefix}.${ms.key}`)}</span>
                     </div>
                   );
                 })}
@@ -552,10 +611,14 @@ export const DashboardPage: React.FC = () => {
             <CardContent className="space-y-4">
               <div className="rounded-lg border border-cyan-400/20 bg-slate-50 p-3.5 text-xs dark:bg-[#070d17]/75">
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
-                  {t('dashboard.monitor.organPanel.orbitalRiskLabel')}
+                  {effectiveMode === 'earth'
+                    ? t('dashboard.monitor.organPanel.recondRiskLabel')
+                    : t('dashboard.monitor.organPanel.orbitalRiskLabel')}
                 </div>
                 <p className="mt-1.5 leading-relaxed text-slate-700 dark:text-slate-300">
-                  {t('dashboard.vitalCards.brainOrbitalRiskNominal')}
+                  {effectiveMode === 'earth'
+                    ? t('dashboard.vitalCards.brainRecondRiskNominal')
+                    : t('dashboard.vitalCards.brainOrbitalRiskNominal')}
                 </p>
               </div>
 
@@ -568,20 +631,30 @@ export const DashboardPage: React.FC = () => {
                     className="mt-1.5 font-mono-tabular text-xl font-bold text-slate-950 dark:text-white"
                     dir="ltr"
                   >
-                    {nominalBaseline.intracranialPressureMmHg}{' '}
+                    {formatLocaleNumber(nominalBaseline.intracranialPressureMmHg, language, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}{' '}
                     <span className="text-xs font-normal text-slate-400">mmHg</span>
                   </div>
                 </div>
 
                 <div className="rounded-lg border border-cyan-400/20 bg-slate-50 p-3.5 dark:bg-[#070d17]/75">
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {t('dashboard.monitor.organPanel.brain.m2')}
+                    {effectiveMode === 'earth'
+                      ? t('dashboard.monitor.organPanel.brain.m3Earth')
+                      : t('dashboard.monitor.organPanel.brain.m2')}
                   </div>
                   <div
                     className="mt-1.5 font-mono-tabular text-xl font-bold text-emerald-600 dark:text-emerald-400"
                     dir="ltr"
                   >
-                    {nominalBaseline.cognitiveIndexPercent}{' '}
+                    {formatLocaleNumber(
+                      effectiveMode === 'earth'
+                        ? nominalBaseline.recoveryScorePercent
+                        : nominalBaseline.cognitiveIndexPercent,
+                      language
+                    )}{' '}
                     <span className="text-xs font-normal text-slate-400">%</span>
                   </div>
                 </div>
@@ -594,7 +667,7 @@ export const DashboardPage: React.FC = () => {
                   className="inline-flex w-full items-center justify-between rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-4 py-2.5 text-xs font-semibold text-cyan-900 transition-colors hover:bg-cyan-500/20 dark:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                 >
                   <span>{t('dashboard.vitalCards.viewBodyMap')}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <ArrowRight className="h-4 w-4 shrink-0 rtl:rotate-180" aria-hidden="true" />
                 </Link>
               </div>
             </CardContent>

@@ -132,7 +132,6 @@ export function createMeasurementRecord(params: {
   notes?: string;
 }): MeasurementRecord {
   const cfg = INDICATOR_CONFIGS[params.indicator];
-  // Rule: Camera-estimated (contactless) blood pressure is ALWAYS marked indicative.
   const isIndicativeBp =
     params.source === 'contactless' &&
     (params.indicator === 'blood_pressure_sys' || params.indicator === 'blood_pressure_dia');
@@ -188,7 +187,7 @@ export function calculateMissionProgress(mission: MissionState): {
   if (percentComplete >= 25) completedMilestones.push('adaptation');
   if (percentComplete >= 50) completedMilestones.push('midMission');
   if (percentComplete >= 75) completedMilestones.push('returnPrep');
-  if (mission.actualDurationDays !== null) completedMilestones.push('landing');
+  if (mission.actualDurationDays !== null || percentComplete >= 100) completedMilestones.push('landing');
 
   return {
     effectiveDurationDays: effectiveDuration,
@@ -216,48 +215,61 @@ export function generateEndOfMissionSynthesis(
     ? Number((sleepValues.reduce((a, b) => a + b, 0) / sleepValues.length).toFixed(1))
     : 6.7;
 
+  const diffDays = mission.actualDurationDays! - mission.plannedDurationDays;
+  const diffSign = diffDays >= 0 ? '+' : '';
+  const isEarth = mission.mode === 'earth';
+
   return {
     period: 'end_of_mission',
     generatedAt: new Date().toISOString(),
-    headlineKey: 'reports.endOfMission.headline',
-    strengthKeys: [
-      'reports.endOfMission.strength1',
-      'reports.endOfMission.strength2',
-    ],
-    watchPointKeys: [
-      'reports.endOfMission.watch1',
-      'reports.endOfMission.watch2',
-    ],
-    actionKeys: [
-      'reports.endOfMission.action1',
-      'reports.endOfMission.action2',
-    ],
+    headlineKey: isEarth ? 'reports.endOfMissionEarth.headline' : 'reports.endOfMission.headline',
+    strengthKeys: isEarth
+      ? ['reports.endOfMissionEarth.strength1', 'reports.endOfMissionEarth.strength2']
+      : ['reports.endOfMission.strength1', 'reports.endOfMission.strength2'],
+    watchPointKeys: isEarth
+      ? ['reports.endOfMissionEarth.watch1', 'reports.endOfMissionEarth.watch2']
+      : ['reports.endOfMission.watch1', 'reports.endOfMission.watch2'],
+    actionKeys: isEarth
+      ? ['reports.endOfMissionEarth.action1', 'reports.endOfMissionEarth.action2']
+      : ['reports.endOfMission.action1', 'reports.endOfMission.action2'],
     metricsSnapshot: [
       {
         labelKey: 'mission.actualDuration',
-        value: `${mission.actualDurationDays} d`,
-        baselineDelta: `${mission.actualDurationDays! - mission.plannedDurationDays >= 0 ? '+' : ''}${mission.actualDurationDays! - mission.plannedDurationDays} d vs planned`,
+        value: `${mission.actualDurationDays}`,
+        rawValue: mission.actualDurationDays ?? undefined,
+        unit: 'days',
+        baselineDelta: `${diffSign}${diffDays} d vs planned`,
+        baselineDeltaKey: 'reports.deltas.vsPlannedDays',
+        baselineDeltaParams: { diff: `${diffSign}${diffDays}` },
         status: 'nominal',
       },
       {
         labelKey: 'indicators.heart_rate',
         value: `${avgHr} bpm`,
-        baselineDelta: '+3 bpm vs pre-flight',
+        rawValue: avgHr,
+        unit: 'bpm',
+        baselineDelta: '+3 bpm vs baseline',
+        baselineDeltaKey: 'reports.deltas.hrPreflight',
+        baselineDeltaParams: { diff: '+3' },
         status: evaluateIndicatorStatus('heart_rate', avgHr),
       },
       {
         labelKey: 'indicators.sleep',
         value: `${avgSleep} h`,
-        baselineDelta: '-0.6 h vs pre-flight',
+        rawValue: avgSleep,
+        unit: 'h',
+        baselineDelta: '-0.6 h vs baseline',
+        baselineDeltaKey: 'reports.deltas.sleepPreflight',
+        baselineDeltaParams: { diff: '-0.6' },
         status: evaluateIndicatorStatus('sleep', avgSleep),
       },
     ],
     chartSeries: [
-      { label: 'Launch', value: 64, baseline: 64 },
-      { label: 'Quarter', value: 69, baseline: 64 },
-      { label: 'Mid', value: 71, baseline: 64 },
-      { label: 'Late', value: 68, baseline: 64 },
-      { label: 'Return', value: avgHr, baseline: 64 },
+      { label: 'Launch', labelKey: isEarth ? 'reports.chartLabels.landing' : 'reports.chartLabels.launch', value: 64, baseline: 64 },
+      { label: 'Quarter', labelKey: 'reports.chartLabels.quarter', value: 69, baseline: 64 },
+      { label: 'Mid', labelKey: 'reports.chartLabels.mid', value: 71, baseline: 64 },
+      { label: 'Late', labelKey: 'reports.chartLabels.late', value: 68, baseline: 64 },
+      { label: 'Return', labelKey: isEarth ? 'reports.chartLabels.followUpEnd' : 'reports.chartLabels.return', value: avgHr, baseline: 64 },
     ],
   };
 }

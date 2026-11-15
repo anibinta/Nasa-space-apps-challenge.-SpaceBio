@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Activity, ShieldCheck } from 'lucide-react';
+import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber } from '../i18n/format';
 import {
   buildWaveformPath,
   DEFAULT_BODY_MAP_ORGAN,
-  DEFAULT_BODY_MAP_SCENARIO,
+  getDefaultScenarioForMode,
   getOrganStatus,
   getOrganWaveformType,
+  getScenariosForMode,
   getScenarioState,
   type BodyOrganFocus,
   type BodyScenarioId,
@@ -17,12 +21,36 @@ import { StatusBadge } from '../components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
 export const BodyMapPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { effectiveMode } = useSpaceBio();
+  const { t, language } = useTranslation();
+  const [searchParams] = useSearchParams();
   const [reducedMotion, setReducedMotion] = useState(false);
 
-  // Default scenario: Tempête solaire (86 bpm rose badge); Default right organ: Heart
-  const [scenarioId, setScenarioId] = useState<BodyScenarioId>(DEFAULT_BODY_MAP_SCENARIO);
-  const [focusedOrgan, setFocusedOrgan] = useState<BodyOrganFocus>(DEFAULT_BODY_MAP_ORGAN);
+  const isBoneFocus = searchParams.get('bone') === '1';
+  const availableScenarios = getScenariosForMode(effectiveMode);
+
+  const [scenarioId, setScenarioId] = useState<BodyScenarioId>(() =>
+    getDefaultScenarioForMode(effectiveMode)
+  );
+  const [focusedOrgan, setFocusedOrgan] = useState<BodyOrganFocus>(() =>
+    isBoneFocus ? 'skeleton' : DEFAULT_BODY_MAP_ORGAN
+  );
+
+  useEffect(() => {
+    if (isBoneFocus) {
+      setFocusedOrgan('skeleton');
+    }
+  }, [isBoneFocus]);
+
+  useEffect(() => {
+    if (!availableScenarios.includes(scenarioId)) {
+      const next = getDefaultScenarioForMode(effectiveMode);
+      setScenarioId(next);
+      if (!isBoneFocus) {
+        setFocusedOrgan(getScenarioState(next).focusedOrgan);
+      }
+    }
+  }, [availableScenarios, effectiveMode, isBoneFocus, scenarioId]);
 
   useEffect(() => {
     const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -57,22 +85,25 @@ export const BodyMapPage: React.FC = () => {
       ? [
           {
             label: t('dashboard.monitor.organPanel.heart.m1'),
-            value: `${scenario.heartRateBpm}`,
+            value: formatLocaleNumber(scenario.heartRateBpm, language),
             unit: 'bpm',
           },
           {
             label: t('dashboard.monitor.organPanel.heart.m2'),
-            value: `${scenario.systolicFlowLpm}`,
+            value: formatLocaleNumber(scenario.systolicFlowLpm, language, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            }),
             unit: 'L/min',
           },
           {
             label: t('dashboard.monitor.organPanel.heart.m3'),
-            value: `${scenario.systolicBp}/${scenario.diastolicBp}`,
+            value: `${formatLocaleNumber(scenario.systolicBp, language)}/${formatLocaleNumber(scenario.diastolicBp, language)}`,
             unit: 'mmHg',
           },
           {
             label: t('dashboard.monitor.organPanel.heart.m4'),
-            value: `${scenario.hrvMs}`,
+            value: formatLocaleNumber(scenario.hrvMs, language),
             unit: 'ms',
           },
         ]
@@ -80,22 +111,25 @@ export const BodyMapPage: React.FC = () => {
         ? [
             {
               label: t('dashboard.monitor.organPanel.lungs.m1'),
-              value: `${scenario.spO2Percent}`,
+              value: formatLocaleNumber(scenario.spO2Percent, language),
               unit: '%',
             },
             {
               label: t('dashboard.monitor.organPanel.lungs.m2'),
-              value: `${scenario.respiratoryRate}`,
+              value: formatLocaleNumber(scenario.respiratoryRate, language),
               unit: '/min',
             },
             {
               label: t('dashboard.monitor.organPanel.lungs.m3'),
-              value: `${scenario.vitalCapacityL}`,
+              value: formatLocaleNumber(scenario.vitalCapacityL, language, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              }),
               unit: 'L',
             },
             {
               label: t('dashboard.monitor.organPanel.lungs.m4'),
-              value: `${scenario.etCo2MmHg}`,
+              value: formatLocaleNumber(scenario.etCo2MmHg, language),
               unit: 'mmHg',
             },
           ]
@@ -103,44 +137,65 @@ export const BodyMapPage: React.FC = () => {
           ? [
               {
                 label: t('dashboard.monitor.organPanel.brain.m1'),
-                value: `${scenario.intracranialPressureMmHg}`,
+                value: formatLocaleNumber(scenario.intracranialPressureMmHg, language, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                }),
                 unit: 'mmHg',
               },
               {
                 label: t('dashboard.monitor.organPanel.brain.m2'),
-                value: `${scenario.cognitiveIndexPercent}`,
+                value: formatLocaleNumber(scenario.cognitiveIndexPercent, language),
                 unit: '%',
               },
-              {
-                label: t('dashboard.monitor.organPanel.brain.m3'),
-                value: `${scenario.radiationDoseMsv}`,
-                unit: 'mSv',
-              },
+              effectiveMode === 'earth'
+                ? {
+                    label: t('dashboard.monitor.organPanel.brain.m3Earth'),
+                    value: formatLocaleNumber(scenario.recoveryScorePercent, language),
+                    unit: '%',
+                  }
+                : {
+                    label: t('dashboard.monitor.organPanel.brain.m3'),
+                    value: formatLocaleNumber(scenario.radiationDoseMsv, language, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    }),
+                    unit: 'mSv',
+                  },
               {
                 label: t('dashboard.monitor.organPanel.brain.m4'),
-                value: `${scenario.cerebralO2Percent}`,
+                value: formatLocaleNumber(scenario.cerebralO2Percent, language),
                 unit: '%',
               },
             ]
           : [
               {
                 label: t('dashboard.monitor.organPanel.skeleton.m1'),
-                value: `${scenario.femoralBmd}`,
+                value: formatLocaleNumber(scenario.femoralBmd, language, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }),
                 unit: 'g/cm²',
               },
               {
                 label: t('dashboard.monitor.organPanel.skeleton.m2'),
-                value: `${scenario.lumbarBmd}`,
+                value: formatLocaleNumber(scenario.lumbarBmd, language, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }),
                 unit: 'g/cm²',
               },
               {
                 label: t('dashboard.monitor.organPanel.skeleton.m3'),
-                value: `${scenario.serumCalciumMmol}`,
+                value: formatLocaleNumber(scenario.serumCalciumMmol, language, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }),
                 unit: 'mmol/L',
               },
               {
                 label: t('dashboard.monitor.organPanel.skeleton.m4'),
-                value: `${scenario.vitaminDNgMl}`,
+                value: formatLocaleNumber(scenario.vitaminDNgMl, language),
                 unit: 'ng/mL',
               },
             ];
@@ -169,6 +224,7 @@ export const BodyMapPage: React.FC = () => {
         <HolographicBodyMonitor
           scenarioId={scenarioId}
           scenario={scenario}
+          availableScenarios={availableScenarios}
           onScenarioChange={handleScenarioChange}
           focusedOrgan={focusedOrgan}
           onSelectOrgan={setFocusedOrgan}
@@ -200,10 +256,14 @@ export const BodyMapPage: React.FC = () => {
 
               <div className="rounded-lg border border-cyan-400/20 bg-[#070d17]/80 p-3 text-xs">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400">
-                  {t('dashboard.monitor.organPanel.orbitalRiskLabel')}
+                  {effectiveMode === 'earth'
+                    ? t('dashboard.monitor.organPanel.recondRiskLabel')
+                    : t('dashboard.monitor.organPanel.orbitalRiskLabel')}
                 </div>
                 <p className="mt-1 leading-relaxed text-slate-200">
-                  {t(`dashboard.monitor.organPanel.${focusedOrgan}.orbitalRisk`)}
+                  {effectiveMode === 'earth'
+                    ? t(`dashboard.monitor.organPanel.${focusedOrgan}.recondRisk`)
+                    : t(`dashboard.monitor.organPanel.${focusedOrgan}.orbitalRisk`)}
                 </p>
               </div>
             </div>
@@ -234,12 +294,12 @@ export const BodyMapPage: React.FC = () => {
                   <Activity className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
                   <span>{t(`dashboard.monitor.organPanel.${focusedOrgan}.waveform`)}</span>
                 </span>
-                <span className="font-mono-tabular text-[10px]" style={{ color: statusAccent }}>
+                <span className="font-mono-tabular text-[10px]" style={{ color: statusAccent }} dir="ltr">
                   {focusedOrgan === 'heart'
-                    ? `${scenario.heartRateBpm} bpm`
+                    ? `${formatLocaleNumber(scenario.heartRateBpm, language)} bpm`
                     : focusedOrgan === 'lungs'
-                      ? `${scenario.respiratoryRate} /min`
-                      : 'LIVE'}
+                      ? `${formatLocaleNumber(scenario.respiratoryRate, language)} /min`
+                      : t('bodyMap.liveBadge')}
                 </span>
               </div>
 

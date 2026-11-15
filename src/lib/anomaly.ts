@@ -42,14 +42,6 @@ function meanAndStdDev(values: number[]): { mean: number; stdDev: number } {
   return { mean, stdDev: Math.sqrt(variance) };
 }
 
-/**
- * Rolling 14-day personal baseline anomaly detection:
- * - Aggregates daily averages per indicator.
- * - Requires at least 7 distinct days of baseline history before flagging.
- * - Flags observations deviating by more than 2 standard deviations from the prior 14-day rolling window.
- * - Detects combined multi-indicator drift patterns (e.g., elevated HR + reduced sleep + elevated temperature over >= 2 days).
- * - Non-diagnostic: every output includes "to be validated by an expert".
- */
 export function detectAnomalies(
   measurements: MeasurementRecord[],
   options?: { patientId?: string }
@@ -64,7 +56,6 @@ export function detectAnomalies(
     'mood',
   ];
 
-  // Build daily averaged series per indicator sorted ascending by missionDay
   const dailySeriesByIndicator = new Map<
     IndicatorId,
     { day: number; value: number; record: MeasurementRecord }[]
@@ -82,19 +73,16 @@ export function detectAnomalies(
     const sortedDays = Array.from(byDay.keys()).sort((a, b) => a - b);
     const series = sortedDays.map((day) => {
       const list = byDay.get(day)!;
-      // Use latest measurement of the day for source metadata, mean for numeric value
       const avg = list.reduce((s, r) => s + r.value, 0) / list.length;
       return { day, value: Number(avg.toFixed(2)), record: list[0] };
     });
     dailySeriesByIndicator.set(ind, series);
 
-    // Need at least 7 prior days before flagging any anomaly
     if (series.length < 8) {
       continue;
     }
 
     const latest = series[series.length - 1];
-    // Rolling 14-day personal window preceding the latest observation
     const baselineWindow = series
       .slice(Math.max(0, series.length - 15), series.length - 1)
       .filter((pt) => latest.day - pt.day <= 14);
@@ -121,10 +109,18 @@ export function detectAnomalies(
         indicatorLabel: INDICATOR_NAMES[ind],
         indicatorId: ind,
         deviationLabel: `${deltaFormatted} (${zScore >= 0 ? '+' : ''}${zScore.toFixed(1)} SD vs 14d baseline)`,
+        deltaFormatted,
         zScore: Number(zScore.toFixed(2)),
         periodLabel: `Day ${baselineWindow[0].day}–${latest.day} (14d rolling baseline)`,
+        startDay: baselineWindow[0].day,
+        endDay: latest.day,
         severity: severityFromZ(absZ),
         sourceData: `${latest.record.source === 'contactless' ? 'Contactless' : 'Manual'} · Day ${latest.day}: ${latest.value} ${cfg.unit} (baseline ${mean.toFixed(precision)} ${cfg.unit}, SD ${effectiveStd.toFixed(2)})`,
+        latestValueFormatted: String(latest.value),
+        meanFormatted: mean.toFixed(precision),
+        sdFormatted: effectiveStd.toFixed(2),
+        unit: cfg.unit,
+        latestSource: latest.record.source,
         suggestedAction: SUGGESTED_ACTIONS[ind],
         validationNotice: 'Threshold > 2 SD over >= 7 days — to be validated by an expert',
         patientId: options?.patientId,
@@ -132,8 +128,6 @@ export function detectAnomalies(
     }
   }
 
-  // Combined multi-indicator pattern detection:
-  // Elevated HR + reduced sleep + elevated body temperature across >= 2 recent days
   const hrSeries = dailySeriesByIndicator.get('heart_rate') ?? [];
   const sleepSeries = dailySeriesByIndicator.get('sleep') ?? [];
   const tempSeries = dailySeriesByIndicator.get('body_temperature') ?? [];
@@ -165,8 +159,13 @@ export function detectAnomalies(
         deviationLabel: 'Multi-indicator autonomic & recovery drift (>= 2 consecutive days)',
         zScore: 2.6,
         periodLabel: `Days ${startDay}–${endDay}`,
+        startDay,
+        endDay,
         severity: 'high',
         sourceData: `HR ${recentHr.map((d) => d.value).join('/')} bpm · Sleep ${recentSleep.map((d) => d.value).join('/')} h · Temp ${recentTemp.map((d) => d.value).join('/')} °C`,
+        recentHr: recentHr.map((d) => d.value),
+        recentSleep: recentSleep.map((d) => d.value),
+        recentTemp: recentTemp.map((d) => d.value),
         suggestedAction:
           'Coordinate prompt flight surgeon review, confirm temperature with calibrated probe, and protect an 8-hour sleep recovery block.',
         validationNotice: 'Multi-indicator drift pattern — to be validated by an expert',

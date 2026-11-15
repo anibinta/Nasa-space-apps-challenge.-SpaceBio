@@ -130,6 +130,7 @@ export const ASSIGNED_PATIENTS: AssignedPatient[] = [
     callSign: 'ARES-02',
     age: 36,
     missionName: 'Ares-IV Orbital Habitat',
+    missionNameKey: 'doctor.missions.ares',
     mode: 'space',
     missionDay: 28,
     plannedDurationDays: 60,
@@ -146,6 +147,7 @@ export const ASSIGNED_PATIENTS: AssignedPatient[] = [
     callSign: 'ARES-04',
     age: 41,
     missionName: 'Ares-IV Orbital Habitat',
+    missionNameKey: 'doctor.missions.ares',
     mode: 'space',
     missionDay: 28,
     plannedDurationDays: 60,
@@ -159,7 +161,10 @@ export const ASSIGNED_PATIENTS: AssignedPatient[] = [
         titleKey: 'alerts.items.boneTitle',
         explanationKey: 'alerts.items.boneExplanation',
         sourceData: 'Optical & Cuff Telemetry (Days 15–16 · HR 78 bpm)',
+        sourceKey: 'alerts.sources.opticalCuff',
+        sourceParams: { start: 15, end: 16, hr: 78 },
         thresholdRule: '2-day autonomic load drift (to be validated by an expert)',
+        thresholdKey: 'alerts.thresholds.autonomic2d',
         suggestedActionKey: 'alerts.items.boneAction',
         timestamp: '2026-11-13T07:00:00Z',
         acknowledged: false,
@@ -183,6 +188,7 @@ export const ASSIGNED_PATIENTS: AssignedPatient[] = [
     callSign: 'TER-07',
     age: 34,
     missionName: 'Post-Flight Reconditioning Alpha',
+    missionNameKey: 'doctor.missions.recondAlpha',
     mode: 'earth',
     missionDay: 9,
     plannedDurationDays: 30,
@@ -196,7 +202,10 @@ export const ASSIGNED_PATIENTS: AssignedPatient[] = [
         titleKey: 'alerts.items.bpTitle',
         explanationKey: 'alerts.items.bpExplanation',
         sourceData: 'Earth Stand Test (Day 9 · 121/77 mmHg)',
+        sourceKey: 'alerts.sources.earthStand',
+        sourceParams: { day: 9, sys: 121, dia: 77 },
         thresholdRule: 'Orthostatic check post-return (to be validated by an expert)',
+        thresholdKey: 'alerts.thresholds.orthostatic',
         suggestedActionKey: 'alerts.items.bpAction',
         timestamp: '2026-11-13T06:00:00Z',
         acknowledged: true,
@@ -218,6 +227,7 @@ export const ASSIGNED_PATIENTS: AssignedPatient[] = [
 
 export interface AnonymizedAnomalySummary {
   cohortLabel: string;
+  cohortKey?: string;
   countLow: number;
   countMedium: number;
   countHigh: number;
@@ -225,7 +235,7 @@ export interface AnonymizedAnomalySummary {
 }
 
 export const ADMIN_ANONYMIZED_ANOMALY_SUMMARY: AnonymizedAnomalySummary[] = [
-  { cohortLabel: 'Spaceflight Cohort (> 20 days)', countLow: 11, countMedium: 5, countHigh: 2, totalObservations: 1420 },
-  { cohortLabel: 'Earth Analog Cohort', countLow: 7, countMedium: 3, countHigh: 0, totalObservations: 2610 },
-  { cohortLabel: 'Post-Return Cohort (0–30 days)', countLow: 6, countMedium: 2, countHigh: 1, totalObservations: 980 },
+  { cohortLabel: 'Spaceflight Cohort (> 20 days)', cohortKey: 'learning.cohorts.spaceflight', countLow: 11, countMedium: 5, countHigh: 2, totalObservations: 1420 },
+  { cohortLabel: 'Earth Analog Cohort', cohortKey: 'learning.cohorts.earthAnalog', countLow: 7, countMedium: 3, countHigh: 0, totalObservations: 2610 },
+  { cohortLabel: 'Post-Return Cohort (0–30 days)', cohortKey: 'learning.cohorts.postReturn', countLow: 6, countMedium: 2, countHigh: 1, totalObservations: 980 },
 ];

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { CheckCircle2, Download, Repeat, Trash2 } from 'lucide-react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { getLanguageOption, SUPPORTED_LANGUAGES } from '../data/languages';
 import { useTranslation } from '../i18n';
-import type { Language, OperationalMode, TextSize, ThemeMode, UserRole } from '../types/health';
+import { formatLocaleDateTime } from '../i18n/format';
+import type { Language, TextSize, ThemeMode } from '../types/health';
 import { FlagIcon } from '../components/shared/FlagIcon';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -19,6 +21,8 @@ import {
 } from '../components/ui/dialog';
 import { Input, Label, Select } from '../components/ui/input';
 
+const DEFAULT_REF_COND_EN = 'Healthy adult · Low-Earth orbit endurance cohort';
+
 export const SettingsPage: React.FC = () => {
   const {
     isGuest,
@@ -30,9 +34,7 @@ export const SettingsPage: React.FC = () => {
     setTheme,
     textSize,
     setTextSize,
-    mission,
     effectiveMode,
-    updateMissionDeparture,
     consents,
     toggleConsent,
     profile,
@@ -45,13 +47,32 @@ export const SettingsPage: React.FC = () => {
   const [fullName, setFullName] = useState(profile.fullName);
   const [age, setAge] = useState(String(profile.age));
   const [sex, setSex] = useState(profile.sex);
-  const [refCond, setRefCond] = useState(profile.referenceCondition);
+  const [refCond, setRefCond] = useState(
+    profile.referenceCondition === DEFAULT_REF_COND_EN
+      ? t('settings.referenceConditionDefault')
+      : profile.referenceCondition
+  );
   const [baseHr, setBaseHr] = useState(String(profile.baselines.heart_rate));
   const [baseSys, setBaseSys] = useState(String(profile.baselines.blood_pressure_sys));
   const [baseTemp, setBaseTemp] = useState(String(profile.baselines.body_temperature));
   const [baseSleep, setBaseSleep] = useState(String(profile.baselines.sleep));
   const [savedNotice, setSavedNotice] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setFullName(profile.fullName);
+    setAge(String(profile.age));
+    setSex(profile.sex);
+    setRefCond(
+      profile.referenceCondition === DEFAULT_REF_COND_EN
+        ? t('settings.referenceConditionDefault')
+        : profile.referenceCondition
+    );
+    setBaseHr(String(profile.baselines.heart_rate));
+    setBaseSys(String(profile.baselines.blood_pressure_sys));
+    setBaseTemp(String(profile.baselines.body_temperature));
+    setBaseSleep(String(profile.baselines.sleep));
+  }, [profile, t]);
 
   const activeLangMeta = getLanguageOption(language);
 
@@ -75,7 +96,10 @@ export const SettingsPage: React.FC = () => {
       lastName: parts.slice(1).join(' ') || profile.lastName,
       age: safeAge,
       sex,
-      referenceCondition: refCond,
+      referenceCondition:
+        refCond.trim() === t('settings.referenceConditionDefault')
+          ? DEFAULT_REF_COND_EN
+          : refCond.trim() || DEFAULT_REF_COND_EN,
       baselines: {
         ...profile.baselines,
         heart_rate: Number(baseHr) || profile.baselines.heart_rate,
@@ -168,7 +192,7 @@ export const SettingsPage: React.FC = () => {
               >
                 {SUPPORTED_LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>
-                    {l.name} ({l.nativeName})
+                    {l.code.toUpperCase()} — {l.nativeName}
                   </option>
                 ))}
               </Select>
@@ -209,19 +233,23 @@ export const SettingsPage: React.FC = () => {
               <Select
                 id="settings-op-mode"
                 value={effectiveMode}
-                disabled={role !== 'astronaut' || isGuest}
-                onChange={(e) =>
-                  updateMissionDeparture(
-                    mission.name,
-                    e.target.value as OperationalMode,
-                    mission.departureDate,
-                    mission.plannedDurationDays
-                  )
-                }
+                disabled
+                aria-readonly="true"
               >
-                {role === 'astronaut' && <option value="space">{t('common.spaceMode')}</option>}
+                <option value="space">{t('common.spaceMode')}</option>
                 <option value="earth">{t('common.earthMode')}</option>
               </Select>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {t('settings.modeReadOnlyHint')}{' '}
+                {role === 'astronaut' && (
+                  <Link
+                    to="/mission"
+                    className="font-semibold text-cyan-600 underline hover:text-cyan-500 dark:text-cyan-400"
+                  >
+                    {t('settings.goToMission')}
+                  </Link>
+                )}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -262,9 +290,9 @@ export const SettingsPage: React.FC = () => {
                   value={sex}
                   onChange={(e) => setSex(e.target.value as typeof sex)}
                 >
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Other / Prefer not to say">Other / Prefer not to say</option>
+                  <option value="Female">{t('settings.sexOptions.female')}</option>
+                  <option value="Male">{t('settings.sexOptions.male')}</option>
+                  <option value="Other / Prefer not to say">{t('settings.sexOptions.other')}</option>
                 </Select>
               </div>
               <div className="space-y-1.5">
@@ -376,9 +404,10 @@ export const SettingsPage: React.FC = () => {
               {consents.slice(0, 6).map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span>
-                    {c.type} ({c.version}) — {c.agreed ? 'GRANTED' : 'WITHDRAWN'}
+                    {t(`settings.consentTypes.${c.type}`)} (<span dir="ltr">{c.version}</span>) —{' '}
+                    {c.agreed ? t('settings.consentStatus.granted') : t('settings.consentStatus.withdrawn')}
                   </span>
-                  <span className="text-slate-500">{new Date(c.updatedAt).toLocaleString()}</span>
+                  <span className="text-slate-500">{formatLocaleDateTime(c.updatedAt, language)}</span>
                 </li>
               ))}
             </ul>
@@ -429,3 +458,4 @@ export const SettingsPage: React.FC = () => {
     </motion.div>
   );
 };
+

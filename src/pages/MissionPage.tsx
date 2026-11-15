@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { CheckCircle2, History, Rocket } from 'lucide-react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleDate, formatLocaleNumber } from '../i18n/format';
 import type { OperationalMode } from '../types/health';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -17,7 +18,7 @@ export const MissionPage: React.FC = () => {
     revisePlannedDuration,
     recordActualReturnDuration,
   } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
 
   const [name, setName] = useState(mission.name);
@@ -30,6 +31,15 @@ export const MissionPage: React.FC = () => {
     mission.actualDurationDays ? String(mission.actualDurationDays) : ''
   );
   const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    setName(mission.name);
+    setMode(mission.mode);
+    setDepartureDate(mission.departureDate);
+    setPlannedInput(String(mission.plannedDurationDays));
+    setRevisionDays(String(mission.plannedDurationDays));
+    setActualInput(mission.actualDurationDays ? String(mission.actualDurationDays) : '');
+  }, [mission]);
 
   const handleSaveDeparture = (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,7 +224,7 @@ export const MissionPage: React.FC = () => {
                     max={1000}
                     value={actualInput}
                     onChange={(e) => setActualInput(e.target.value)}
-                    placeholder="e.g., 60"
+                    placeholder={t('mission.actualPlaceholder')}
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -261,14 +271,18 @@ export const MissionPage: React.FC = () => {
                   className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
                 >
                   <div>
-                    <span className="font-mono-tabular font-semibold">
-                      {ch.previousDays} d → {ch.newDays} d
+                    <span className="font-mono-tabular font-semibold" dir="ltr">
+                      {formatLocaleNumber(ch.previousDays, language)} {t('common.days')} →{' '}
+                      {formatLocaleNumber(ch.newDays, language)} {t('common.days')}
                     </span>
                     <span className="mx-2 text-slate-400">·</span>
-                    <span className="text-slate-700 dark:text-slate-300">{ch.reason}</span>
+                    <span className="text-slate-700 dark:text-slate-300">
+                      {ch.reasonKey ? t(ch.reasonKey) : ch.reason}
+                    </span>
                   </div>
                   <div className="font-mono-tabular text-xs text-slate-500 dark:text-slate-400">
-                    {ch.changedBy} · {new Date(ch.changedAt).toLocaleDateString()}
+                    {ch.changedByKey ? t(ch.changedByKey) : ch.changedBy} ·{' '}
+                    {formatLocaleDate(ch.changedAt, language)}
                   </div>
                 </div>
               ))}
@@ -279,3 +293,4 @@ export const MissionPage: React.FC = () => {
     </motion.div>
   );
 };
+

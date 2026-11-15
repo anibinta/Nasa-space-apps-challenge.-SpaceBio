@@ -9,15 +9,16 @@ import {
 import { SUPPORTED_LANGUAGES } from '../data/languages';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber } from '../i18n/format';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
-export type AdminSectionView = 'overview' | 'sites' | 'sync' | 'inclusion';
+export type AdminSectionView = 'sites' | 'sync' | 'inclusion';
 
 export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
-  section = 'overview',
+  section = 'sites',
 }) => {
   const { adminSummary } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const totalMissions =
     LEARNING_SITES.reduce((acc, s) => acc + s.contributingMissions, 0) +
@@ -36,18 +37,16 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
   const anomalyRows = adminSummary?.cohorts ?? ADMIN_ANONYMIZED_ANOMALY_SUMMARY;
 
   const headingTitle =
-    section === 'sites'
-      ? t('nav.partnerSites')
-      : section === 'sync'
-        ? t('nav.modelSync')
-        : section === 'inclusion'
-          ? t('nav.inclusion')
-          : t('learning.title');
+    section === 'sync'
+      ? t('nav.modelSync')
+      : section === 'inclusion'
+        ? t('nav.inclusion')
+        : t('nav.partnerSites');
 
-  const showOverviewCards = section === 'overview' || section === 'sync';
-  const showSitesTable = section === 'overview' || section === 'sites' || section === 'sync';
-  const showInclusionTable = section === 'overview' || section === 'inclusion';
-  const showAnonymizedAnomalies = section === 'overview';
+  const showOverviewCards = section === 'sites';
+  const showSitesTable = section === 'sites' || section === 'sync';
+  const showInclusionTable = section === 'inclusion';
+  const showAnonymizedAnomalies = section === 'sites';
 
   return (
     <motion.div
@@ -81,7 +80,9 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {t('learning.totalMissions')}
               </div>
-              <div className="mt-2 font-mono-tabular text-3xl font-bold">{totalMissions}</div>
+              <div className="mt-2 font-mono-tabular text-3xl font-bold" dir="ltr">
+                {formatLocaleNumber(totalMissions, language)}
+              </div>
               <div className="mt-1 text-[11px] text-slate-500">{t('common.simulatedData')}</div>
             </CardContent>
           </Card>
@@ -91,8 +92,8 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {t('learning.unassistedShare')}
               </div>
-              <div className="mt-2 font-mono-tabular text-3xl font-bold text-amber-600 dark:text-amber-400">
-                {avgUnassisted}%
+              <div className="mt-2 font-mono-tabular text-3xl font-bold text-amber-600 dark:text-amber-400" dir="ltr">
+                {formatLocaleNumber(avgUnassisted, language)}%
               </div>
               <div className="mt-1 text-[11px] text-slate-500">{t('common.simulatedData')}</div>
             </CardContent>
@@ -103,8 +104,8 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {t('learning.syncHealth')}
               </div>
-              <div className="mt-2 font-mono-tabular text-3xl font-bold">
-                {syncedCount} / {LEARNING_SITES.length}
+              <div className="mt-2 font-mono-tabular text-3xl font-bold" dir="ltr">
+                {formatLocaleNumber(syncedCount, language)} / {formatLocaleNumber(LEARNING_SITES.length, language)}
               </div>
               <div className="mt-1 text-[11px] text-slate-500">{t('common.simulatedData')}</div>
             </CardContent>
@@ -117,9 +118,9 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
               </div>
               <div className="mt-2 flex items-center gap-2 font-mono-tabular text-2xl font-bold">
                 <Globe2 className="h-5 w-5 text-amber-500" aria-hidden="true" />
-                <span>{SUPPORTED_LANGUAGES.length}</span>
+                <span>{formatLocaleNumber(SUPPORTED_LANGUAGES.length, language)}</span>
               </div>
-              <div className="mt-1 text-[11px] text-slate-500 truncate">
+              <div className="mt-1 text-[11px] text-slate-500 truncate" dir="ltr">
                 {SUPPORTED_LANGUAGES.map((l) => l.code.toUpperCase()).join(' · ')}
               </div>
             </CardContent>
@@ -137,30 +138,34 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                    <th className="py-2.5 pr-4 font-medium">{t('anomalies.cohort')}</th>
-                    <th className="py-2.5 pr-4 font-medium text-right">{t('anomalies.lowCount')}</th>
-                    <th className="py-2.5 pr-4 font-medium text-right">{t('anomalies.mediumCount')}</th>
-                    <th className="py-2.5 pr-4 font-medium text-right">{t('anomalies.highCount')}</th>
-                    <th className="py-2.5 font-medium text-right">{t('anomalies.observations')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('anomalies.cohort')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-end">{t('anomalies.lowCount')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-end">{t('anomalies.mediumCount')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-end">{t('anomalies.highCount')}</th>
+                    <th className="py-2.5 font-medium text-end">{t('anomalies.observations')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
                   {anomalyRows.map((row) => (
                     <tr key={row.cohortLabel}>
-                      <td className="py-3 pr-4 font-semibold text-slate-900 dark:text-slate-100">
-                        {row.cohortLabel}
+                      <td className="py-3 pe-4 font-semibold text-slate-900 dark:text-slate-100">
+                        {row.cohortKey ? t(row.cohortKey) : row.cohortLabel}
                       </td>
-                      <td className="py-3 pr-4 text-right font-mono-tabular">{row.countLow}</td>
-                      <td className="py-3 pr-4 text-right font-mono-tabular text-amber-600 dark:text-amber-300">
-                        {row.countMedium}
+                      <td className="py-3 pe-4 text-end font-mono-tabular">
+                        {formatLocaleNumber(row.countLow, language)}
                       </td>
-                      <td className="py-3 pr-4 text-right font-mono-tabular text-rose-600 dark:text-rose-300">
-                        {row.countHigh}
+                      <td className="py-3 pe-4 text-end font-mono-tabular text-amber-600 dark:text-amber-300">
+                        {formatLocaleNumber(row.countMedium, language)}
                       </td>
-                      <td className="py-3 text-right font-mono-tabular">{row.totalObservations}</td>
+                      <td className="py-3 pe-4 text-end font-mono-tabular text-rose-600 dark:text-rose-300">
+                        {formatLocaleNumber(row.countHigh, language)}
+                      </td>
+                      <td className="py-3 text-end font-mono-tabular">
+                        {formatLocaleNumber(row.totalObservations, language)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -178,24 +183,26 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                    <th className="py-2.5 pr-4 font-medium">{t('learning.headers.site')}</th>
-                    <th className="py-2.5 pr-4 font-medium">{t('learning.headers.country')}</th>
-                    <th className="py-2.5 pr-4 font-medium">{t('learning.headers.sync')}</th>
-                    <th className="py-2.5 pr-4 font-medium text-right">{t('learning.headers.missions')}</th>
-                    <th className="py-2.5 font-medium text-right">{t('learning.headers.unassisted')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('learning.headers.site')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('learning.headers.country')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('learning.headers.sync')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-end">{t('learning.headers.missions')}</th>
+                    <th className="py-2.5 font-medium text-end">{t('learning.headers.unassisted')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
                   {LEARNING_SITES.map((site) => (
                     <tr key={site.id}>
-                      <td className="py-3 pr-4 font-semibold text-slate-900 dark:text-slate-100">
+                      <td className="py-3 pe-4 font-semibold text-slate-900 dark:text-slate-100">
                         {site.name}
                       </td>
-                      <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{site.country}</td>
-                      <td className="py-3 pr-4">
+                      <td className="py-3 pe-4 text-slate-600 dark:text-slate-300">
+                        {site.countryKey ? t(site.countryKey) : site.country}
+                      </td>
+                      <td className="py-3 pe-4">
                         <span
                           className={`inline-flex items-center gap-1.5 text-xs font-medium ${
                             site.syncStatus === 'synchronized'
@@ -211,11 +218,11 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
                           <span>{t(`learning.syncStates.${site.syncStatus}`)}</span>
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-right font-mono-tabular">
-                        {site.contributingMissions}
+                      <td className="py-3 pe-4 text-end font-mono-tabular">
+                        {formatLocaleNumber(site.contributingMissions, language)}
                       </td>
-                      <td className="py-3 text-right font-mono-tabular">
-                        {site.unassistedSharePercent}%
+                      <td className="py-3 text-end font-mono-tabular">
+                        {formatLocaleNumber(site.unassistedSharePercent, language)}%
                       </td>
                     </tr>
                   ))}
@@ -234,25 +241,29 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                    <th className="py-2.5 pr-4 font-medium">{t('learning.headers.subgroup')}</th>
-                    <th className="py-2.5 pr-4 font-medium text-right">{t('learning.headers.samples')}</th>
-                    <th className="py-2.5 pr-4 font-medium">{t('learning.headers.mae')}</th>
-                    <th className="py-2.5 font-medium text-right">{t('learning.headers.coverage')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('learning.headers.subgroup')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-end">{t('learning.headers.samples')}</th>
+                    <th className="py-2.5 pe-4 font-medium text-start">{t('learning.headers.mae')}</th>
+                    <th className="py-2.5 font-medium text-end">{t('learning.headers.coverage')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
                   {SUBGROUP_PERFORMANCE.map((row) => (
                     <tr key={row.subgroup}>
-                      <td className="py-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
-                        {row.subgroup}
+                      <td className="py-3 pe-4 font-medium text-slate-900 dark:text-slate-100">
+                        {row.subgroupKey ? t(row.subgroupKey) : row.subgroup}
                       </td>
-                      <td className="py-3 pr-4 text-right font-mono-tabular">{row.sampleCount}</td>
-                      <td className="py-3 pr-4 font-mono-tabular text-xs">{row.maeLabel}</td>
-                      <td className="py-3 text-right font-mono-tabular font-semibold text-amber-700 dark:text-amber-300">
-                        {row.coveragePercent}%
+                      <td className="py-3 pe-4 text-end font-mono-tabular">
+                        {formatLocaleNumber(row.sampleCount, language)}
+                      </td>
+                      <td className="py-3 pe-4 font-mono-tabular text-xs" dir="ltr">
+                        {row.maeLabel}
+                      </td>
+                      <td className="py-3 text-end font-mono-tabular font-semibold text-amber-700 dark:text-amber-300">
+                        {formatLocaleNumber(row.coveragePercent, language)}%
                       </td>
                     </tr>
                   ))}
@@ -265,3 +276,4 @@ export const LearningNetworkPage: React.FC<{ section?: AdminSectionView }> = ({
     </motion.div>
   );
 };
+

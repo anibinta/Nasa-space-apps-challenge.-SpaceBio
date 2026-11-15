@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber } from '../i18n/format';
 import { AlertCard } from '../components/shared/AlertCard';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 export const DoctorAlertsPage: React.FC = () => {
   const { assignedPatients, setSelectedPatientId } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
 
   return (
@@ -35,7 +36,10 @@ export const DoctorAlertsPage: React.FC = () => {
               <div>
                 <CardTitle>{pat.fullName}</CardTitle>
                 <CardDescription>
-                  {pat.callSign} · {pat.missionName} · {t('common.day')} {pat.missionDay}
+                  {pat.callSign} ·{' '}
+                  {pat.missionNameKey ? t(pat.missionNameKey) : pat.missionName} ·{' '}
+                  {t('common.day')} {formatLocaleNumber(pat.missionDay, language)} ·{' '}
+                  {pat.mode === 'space' ? t('common.spaceMode') : t('common.earthMode')}
                 </CardDescription>
               </div>
               <Button
@@ -61,3 +65,4 @@ export const DoctorAlertsPage: React.FC = () => {
     </motion.div>
   );
 };
+

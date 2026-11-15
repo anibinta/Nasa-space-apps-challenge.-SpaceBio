@@ -1,16 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { AlertTriangle, Bone, Compass, CalendarCheck } from 'lucide-react';
+import { AlertTriangle, Compass, CalendarCheck } from 'lucide-react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleDate, formatLocaleNumber } from '../i18n/format';
 import { StatusBadge } from '../components/shared/StatusBadge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 export const BoneHealthPage: React.FC = () => {
-  const { boneHealth, setSelectedBodyRegion } = useSpaceBio();
-  const { t } = useTranslation();
+  const { boneHealth, setSelectedBodyRegion, effectiveMode } = useSpaceBio();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
 
   const resPct = Math.min(
@@ -95,7 +96,10 @@ export const BoneHealthPage: React.FC = () => {
                 textAnchor="middle"
                 className="fill-slate-900 dark:fill-white font-mono-tabular text-2xl font-bold"
               >
-                {boneHealth.riskEstimatePercent}%
+                {formatLocaleNumber(boneHealth.riskEstimatePercent, language, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}%
               </text>
               <text
                 x="110"
@@ -103,7 +107,14 @@ export const BoneHealthPage: React.FC = () => {
                 textAnchor="middle"
                 className="fill-slate-500 dark:fill-slate-400 font-mono-tabular text-[11px]"
               >
-                {t('bone.riskIntervalLabel')}: {boneHealth.riskIntervalLow}%–{boneHealth.riskIntervalHigh}%
+                {t('bone.riskIntervalLabel')}:{' '}
+                {formatLocaleNumber(boneHealth.riskIntervalLow, language, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}%–{formatLocaleNumber(boneHealth.riskIntervalHigh, language, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}%
               </text>
             </svg>
             <p className="mt-2 text-center text-xs text-slate-600 dark:text-slate-400">
@@ -117,14 +128,18 @@ export const BoneHealthPage: React.FC = () => {
             <CardTitle>{t('bone.loadTitle')}</CardTitle>
             <CardDescription>{t('common.simulatedData')}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent data-testid="daily-mechanical-load-card" className="space-y-6">
             <div>
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-slate-800 dark:text-slate-200">
-                  {t('bone.resistiveLabel')}
+                  {effectiveMode === 'earth'
+                    ? t('bone.resistiveLabelEarth')
+                    : t('bone.resistiveLabel')}
                 </span>
-                <span className="font-mono-tabular font-semibold">
-                  {boneHealth.resistiveExerciseMinutesToday} / {boneHealth.resistiveExerciseTarget} min ({resPct}%)
+                <span className="font-mono-tabular font-semibold" dir="ltr">
+                  {formatLocaleNumber(boneHealth.resistiveExerciseMinutesToday, language)} /{' '}
+                  {formatLocaleNumber(boneHealth.resistiveExerciseTarget, language)}{' '}
+                  {t('bone.minutesUnit')} ({formatLocaleNumber(resPct, language)}%)
                 </span>
               </div>
               <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
@@ -138,10 +153,14 @@ export const BoneHealthPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-slate-800 dark:text-slate-200">
-                  {t('bone.standingLabel')}
+                  {effectiveMode === 'earth'
+                    ? t('bone.standingLabelEarth')
+                    : t('bone.standingLabel')}
                 </span>
-                <span className="font-mono-tabular font-semibold">
-                  {boneHealth.standingTimeMinutesToday} / {boneHealth.standingTimeTarget} min ({standPct}%)
+                <span className="font-mono-tabular font-semibold" dir="ltr">
+                  {formatLocaleNumber(boneHealth.standingTimeMinutesToday, language)} /{' '}
+                  {formatLocaleNumber(boneHealth.standingTimeTarget, language)}{' '}
+                  {t('bone.minutesUnit')} ({formatLocaleNumber(standPct, language)}%)
                 </span>
               </div>
               <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
@@ -150,24 +169,6 @@ export const BoneHealthPage: React.FC = () => {
                   style={{ width: `${standPct}%` }}
                 />
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              {(['spine', 'pelvis', 'leftLeg', 'rightLeg', 'skeleton'] as const).map((regionId) => (
-                <Button
-                  key={regionId}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedBodyRegion(regionId);
-                    navigate('/body-map?bone=1');
-                  }}
-                >
-                  <Bone className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-                  <span>{t(`bodyMap.regions.${regionId}.name`)}</span>
-                </Button>
-              ))}
             </div>
           </CardContent>
         </Card>
@@ -181,37 +182,37 @@ export const BoneHealthPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-start text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                  <th className="py-2.5 pr-4 font-medium">{t('bone.tableHeaders.marker')}</th>
-                  <th className="py-2.5 pr-4 font-medium text-right">{t('bone.tableHeaders.value')}</th>
-                  <th className="py-2.5 pr-4 font-medium">{t('bone.tableHeaders.reference')}</th>
-                  <th className="py-2.5 pr-4 font-medium">{t('bone.tableHeaders.source')}</th>
-                  <th className="py-2.5 pr-4 font-medium">{t('bone.tableHeaders.date')}</th>
+                  <th className="py-2.5 pe-4 font-medium">{t('bone.tableHeaders.marker')}</th>
+                  <th className="py-2.5 pe-4 font-medium text-end">{t('bone.tableHeaders.value')}</th>
+                  <th className="py-2.5 pe-4 font-medium">{t('bone.tableHeaders.reference')}</th>
+                  <th className="py-2.5 pe-4 font-medium">{t('bone.tableHeaders.source')}</th>
+                  <th className="py-2.5 pe-4 font-medium">{t('bone.tableHeaders.date')}</th>
                   <th className="py-2.5 font-medium">{t('bone.tableHeaders.status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
                 {boneHealth.markers.map((m) => (
                   <tr key={m.id}>
-                    <td className="py-3 pr-4 font-semibold text-slate-900 dark:text-slate-100">
-                      {m.marker}
+                    <td className="py-3 pe-4 font-semibold text-slate-900 dark:text-slate-100">
+                      {m.markerKey ? t(m.markerKey) : m.marker}
                     </td>
-                    <td className="py-3 pr-4 text-right font-mono-tabular font-semibold">
-                      {m.value}{' '}
+                    <td className="py-3 pe-4 text-end font-mono-tabular font-semibold" dir="ltr">
+                      {formatLocaleNumber(m.value, language)}{' '}
                       <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                         {m.unit}
                       </span>
                     </td>
-                    <td className="py-3 pr-4 font-mono-tabular text-xs text-slate-600 dark:text-slate-300">
+                    <td className="py-3 pe-4 font-mono-tabular text-xs text-slate-600 dark:text-slate-300" dir="ltr">
                       {m.referenceRange}
                     </td>
-                    <td className="py-3 pr-4 text-xs text-slate-600 dark:text-slate-300">
-                      {m.samplingSource}
+                    <td className="py-3 pe-4 text-xs text-slate-600 dark:text-slate-300">
+                      {m.samplingSourceKey ? t(m.samplingSourceKey) : m.samplingSource}
                     </td>
-                    <td className="py-3 pr-4 font-mono-tabular text-xs text-slate-500 dark:text-slate-400">
-                      {m.date}
+                    <td className="py-3 pe-4 font-mono-tabular text-xs text-slate-500 dark:text-slate-400">
+                      {formatLocaleDate(m.date, language)}
                     </td>
                     <td className="py-3">
                       <StatusBadge status={m.status} />
@@ -239,16 +240,18 @@ export const BoneHealthPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {ex.examType}
+                    {ex.examTypeKey ? t(ex.examTypeKey) : ex.examType}
                   </span>
                   <CalendarCheck className="h-4 w-4 text-cyan-500 shrink-0" aria-hidden="true" />
                 </div>
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {ex.phase} · {ex.facility}
+                  {ex.phaseKey ? t(ex.phaseKey) : ex.phase} ·{' '}
+                  {ex.facilityKey ? t(ex.facilityKey) : ex.facility}
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs font-mono-tabular">
                   <span>
-                    {t('common.day')} {ex.scheduledDay} ({ex.scheduledDate})
+                    {t('common.day')} {formatLocaleNumber(ex.scheduledDay, language)} (
+                    {formatLocaleDate(ex.scheduledDate, language)})
                   </span>
                   <span className="font-semibold text-cyan-700 dark:text-cyan-300">
                     {t(`bone.examStatus.${ex.status}`)}

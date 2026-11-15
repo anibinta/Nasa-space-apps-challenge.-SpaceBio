@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Activity, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber, interpolateTemplate } from '../i18n/format';
 import type { AnomalySeverity } from '../types/health';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
@@ -13,12 +14,12 @@ const SEVERITY_BADGE: Record<AnomalySeverity, string> = {
 };
 
 export const AnomaliesPage: React.FC = () => {
-  const { role, anomalies, assignedPatients } = useSpaceBio();
-  const { t } = useTranslation();
+  const { role, effectiveMode, anomalies, assignedPatients } = useSpaceBio();
+  const { t, language } = useTranslation();
 
-  const patientNameFor = (pid?: string) => {
+  const patientFor = (pid?: string) => {
     if (!pid) return null;
-    return assignedPatients.find((p) => p.id === pid)?.fullName ?? null;
+    return assignedPatients.find((p) => p.id === pid) ?? null;
   };
 
   return (
@@ -55,20 +56,92 @@ export const AnomaliesPage: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {anomalies.map((anom) => {
-            const patName = role === 'doctor' ? patientNameFor(anom.patientId) : null;
+            const patient = role === 'doctor' ? patientFor(anom.patientId) : null;
+            const isEarthContext =
+              role === 'doctor' ? patient?.mode === 'earth' : effectiveMode === 'earth';
+
+            const titleText =
+              anom.kind === 'combined'
+                ? t('anomalies.combinedTitle')
+                : anom.indicatorId
+                  ? t(`indicators.${anom.indicatorId}`)
+                  : anom.indicatorLabel;
+
+            const deviationText =
+              anom.kind === 'combined'
+                ? t('anomalies.combinedDeviation')
+                : interpolateTemplate(t('anomalies.singleDeviation'), {
+                    delta: anom.deltaFormatted ?? anom.deviationLabel,
+                    z: `${anom.zScore >= 0 ? '+' : ''}${formatLocaleNumber(anom.zScore, language, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}`,
+                  });
+
+            const periodText =
+              anom.startDay !== undefined && anom.endDay !== undefined
+                ? interpolateTemplate(
+                    t(anom.kind === 'combined' ? 'anomalies.daysRange' : 'anomalies.rollingPeriod'),
+                    {
+                      start: formatLocaleNumber(anom.startDay, language),
+                      end: formatLocaleNumber(anom.endDay, language),
+                    }
+                  )
+                : anom.periodLabel;
+
+            const sourceText =
+              anom.kind === 'combined'
+                ? interpolateTemplate(t('anomalies.combinedSourceTemplate'), {
+                    hr: (anom.recentHr ?? [])
+                      .map((v) => formatLocaleNumber(v, language))
+                      .join('/'),
+                    sleep: (anom.recentSleep ?? [])
+                      .map((v) => formatLocaleNumber(v, language))
+                      .join('/'),
+                    temp: (anom.recentTemp ?? [])
+                      .map((v) => formatLocaleNumber(v, language))
+                      .join('/'),
+                  })
+                : anom.latestValueFormatted !== undefined && anom.endDay !== undefined
+                  ? interpolateTemplate(t('anomalies.sourceTemplate'), {
+                      source:
+                        anom.latestSource === 'contactless'
+                          ? t('common.contactless')
+                          : t('common.manual'),
+                      day: formatLocaleNumber(anom.endDay, language),
+                      value: anom.latestValueFormatted,
+                      unit: anom.unit ?? '',
+                      mean: anom.meanFormatted ?? '',
+                      sd: anom.sdFormatted ?? '',
+                    })
+                  : anom.sourceData;
+
+            const suggestedActionText =
+              anom.kind === 'combined'
+                ? t('anomalies.combinedAction')
+                : anom.indicatorId
+                  ? t(`anomalies.actions.${anom.indicatorId}`)
+                  : anom.suggestedAction;
+
+            const validationText =
+              anom.kind === 'combined'
+                ? t('anomalies.validationCombined')
+                : t('anomalies.validationSingle');
+
             return (
               <Card key={`${anom.patientId ?? 'self'}-${anom.id}`}>
                 <CardHeader className="pb-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      {patName && (
+                      {patient && (
                         <CardDescription className="font-semibold text-emerald-700 dark:text-emerald-300">
-                          {patName}
+                          {patient.fullName} ·{' '}
+                          {patient.mode === 'space' ? t('common.spaceMode') : t('common.earthMode')}
                         </CardDescription>
                       )}
                       <CardTitle className="flex items-center gap-2 text-base">
                         <Activity className="h-4 w-4 text-amber-500 shrink-0" aria-hidden="true" />
-                        <span>{anom.indicatorLabel}</span>
+                        <span>{titleText}</span>
                       </CardTitle>
                     </div>
                     <span
@@ -91,13 +164,13 @@ export const AnomaliesPage: React.FC = () => {
                       <div className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         {t('anomalies.deviation')}
                       </div>
-                      <div className="mt-1 font-mono-tabular font-semibold">{anom.deviationLabel}</div>
+                      <div className="mt-1 font-mono-tabular font-semibold">{deviationText}</div>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-[#0d162d]">
                       <div className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         {t('anomalies.period')}
                       </div>
-                      <div className="mt-1 font-mono-tabular font-medium">{anom.periodLabel}</div>
+                      <div className="mt-1 font-mono-tabular font-medium">{periodText}</div>
                     </div>
                   </div>
 
@@ -106,7 +179,7 @@ export const AnomaliesPage: React.FC = () => {
                       {t('anomalies.sourceData')}:{' '}
                     </span>
                     <span className="font-mono-tabular text-xs text-slate-700 dark:text-slate-300">
-                      {anom.sourceData}
+                      {sourceText}
                     </span>
                   </div>
 
@@ -114,11 +187,17 @@ export const AnomaliesPage: React.FC = () => {
                     <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {t('anomalies.suggestedAction')}:{' '}
                     </span>
-                    <span className="text-slate-800 dark:text-slate-200">{anom.suggestedAction}</span>
+                    <span className="text-slate-800 dark:text-slate-200">{suggestedActionText}</span>
                   </div>
 
+                  {isEarthContext && (
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-800 dark:text-emerald-200">
+                      {t('anomalies.earthContextNote')}
+                    </div>
+                  )}
+
                   <div className="text-xs font-medium italic text-amber-700 dark:text-amber-300">
-                    {anom.validationNotice} · {t('common.simulatedData')}
+                    {validationText} · {t('common.simulatedData')}
                   </div>
                 </CardContent>
               </Card>
@@ -129,3 +208,4 @@ export const AnomaliesPage: React.FC = () => {
     </motion.div>
   );
 };
+

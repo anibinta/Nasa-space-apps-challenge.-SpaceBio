@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber } from '../i18n/format';
 import { formatTrendsCsv, INDICATOR_CONFIGS } from '../lib/healthEngine';
 import type { IndicatorId } from '../types/health';
 import { Button } from '../components/ui/button';
@@ -36,7 +37,7 @@ const TREND_INDICATORS: IndicatorId[] = [
 
 export const TrendsPage: React.FC = () => {
   const { measurements, profile, mission } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [searchParams] = useSearchParams();
 
   const initialInd = (searchParams.get('indicator') as IndicatorId) || 'heart_rate';
@@ -72,7 +73,7 @@ export const TrendsPage: React.FC = () => {
         const lower = Number((avg - margin).toFixed(1));
         const upper = Number((avg + margin).toFixed(1));
         return {
-          dayLabel: `D${d}`,
+          dayLabel: `${t('common.dayShort')}${formatLocaleNumber(d, language)}`,
           date: `2026-10-${String(Math.min(30, 15 + d)).padStart(2, '0')}`,
           value: avg,
           baseline,
@@ -81,7 +82,7 @@ export const TrendsPage: React.FC = () => {
           bandSpan: Number((upper - lower).toFixed(1)),
         };
       });
-  }, [measurements, indicator, period, mission.currentDay, baseline]);
+  }, [measurements, indicator, period, mission.currentDay, baseline, t, language]);
 
   const handleExportCsv = () => {
     const csv = formatTrendsCsv(indicator, series);
@@ -199,7 +200,11 @@ export const TrendsPage: React.FC = () => {
               onCheckedChange={setShowBaseline}
             />
             <Label htmlFor="baseline-toggle" className="text-xs cursor-pointer">
-              {t('trends.showBaseline')} ({baseline} {cfg.unit})
+              {t('trends.showBaseline')} (
+              <span dir="ltr">
+                {formatLocaleNumber(baseline, language)} {cfg.unit}
+              </span>
+              )
             </Label>
           </div>
         </CardContent>
@@ -212,15 +217,17 @@ export const TrendsPage: React.FC = () => {
             {t(`indicators.${indicator}`)} ({cfg.unit})
           </CardTitle>
           <CardDescription>
-            {t('common.simulatedData')} · {t('dashboard.referenceRange')}: {cfg.refMin}–{cfg.refMax}{' '}
-            {cfg.unit}
+            {t('common.simulatedData')} · {t('dashboard.referenceRange')}:{' '}
+            <span dir="ltr">
+              {formatLocaleNumber(cfg.refMin, language)}–{formatLocaleNumber(cfg.refMax, language)} {cfg.unit}
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
           {series.length === 0 ? (
             <div className="py-16 text-center text-sm text-slate-500">{t('trends.noTrendData')}</div>
           ) : (
-            <div className="h-80 w-full">
+            <div className="h-80 w-full" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
                 {chartMode === 'line' ? (
                   <LineChart data={series} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
@@ -241,7 +248,11 @@ export const TrendsPage: React.FC = () => {
                         y={baseline}
                         stroke="#f59e0b"
                         strokeDasharray="5 5"
-                        label={{ value: `${t('dashboard.baseline')}: ${baseline}`, fill: '#f59e0b', fontSize: 11 }}
+                        label={{
+                          value: `${t('dashboard.baseline')}: ${formatLocaleNumber(baseline, language)}`,
+                          fill: '#f59e0b',
+                          fontSize: 11,
+                        }}
                       />
                     )}
                     <Line

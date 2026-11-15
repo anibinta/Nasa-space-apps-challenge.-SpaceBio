@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { ArrowLeft, Eye, Lock } from 'lucide-react';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { useTranslation } from '../i18n';
+import { formatLocaleNumber } from '../i18n/format';
 import { evaluateIndicatorStatus } from '../lib/healthEngine';
 import { AlertCard } from '../components/shared/AlertCard';
 import { StatusBadge } from '../components/shared/StatusBadge';
@@ -12,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 
 export const PatientFilePage: React.FC = () => {
   const { assignedPatients, selectedPatientId, setSelectedPatientId } = useSpaceBio();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
 
   const patient =
@@ -34,17 +35,29 @@ export const PatientFilePage: React.FC = () => {
             variant="ghost"
             size="sm"
             onClick={() => navigate('/patients')}
-            className="mb-2 -ml-2"
+            className="mb-2 -ms-2"
           >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
             <span>{t('doctor.backToRoster')}</span>
           </Button>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
             {t('doctor.fileTitle')}: {patient.fullName}
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            {patient.callSign} · {patient.missionName} · {t('common.day')} {patient.missionDay}/
-            {patient.plannedDurationDays} · {t('common.simulatedData')}
+            {patient.callSign} ·{' '}
+            {patient.missionNameKey ? t(patient.missionNameKey) : patient.missionName} ·{' '}
+            {t('common.day')} {formatLocaleNumber(patient.missionDay, language)}/
+            {formatLocaleNumber(patient.plannedDurationDays, language)} ·{' '}
+            <span
+              className={`font-semibold ${
+                patient.mode === 'space'
+                  ? 'text-cyan-700 dark:text-cyan-300'
+                  : 'text-emerald-700 dark:text-emerald-300'
+              }`}
+            >
+              {patient.mode === 'space' ? t('common.spaceMode') : t('common.earthMode')}
+            </span>{' '}
+            · {t('common.simulatedData')}
           </p>
         </div>
 
@@ -93,15 +106,15 @@ export const PatientFilePage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-start text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                  <th className="py-2 pr-4 font-medium">{t('common.day')}</th>
-                  <th className="py-2 pr-4 font-medium">{t('measurements.indicatorLabel')}</th>
-                  <th className="py-2 pr-4 font-medium text-right">{t('measurements.valueLabel')}</th>
-                  <th className="py-2 pr-4 font-medium">{t('common.source')}</th>
-                  <th className="py-2 pr-4 font-medium text-right">{t('common.confidence')}</th>
-                  <th className="py-2 font-medium">{t('bone.tableHeaders.status')}</th>
+                  <th className="py-2 pe-4 font-medium text-start">{t('common.day')}</th>
+                  <th className="py-2 pe-4 font-medium text-start">{t('measurements.indicatorLabel')}</th>
+                  <th className="py-2 pe-4 font-medium text-end">{t('measurements.valueLabel')}</th>
+                  <th className="py-2 pe-4 font-medium text-start">{t('common.source')}</th>
+                  <th className="py-2 pe-4 font-medium text-end">{t('common.confidence')}</th>
+                  <th className="py-2 font-medium text-start">{t('bone.tableHeaders.status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
@@ -109,17 +122,23 @@ export const PatientFilePage: React.FC = () => {
                   const status = evaluateIndicatorStatus(rec.indicator, rec.value);
                   return (
                     <tr key={rec.id}>
-                      <td className="py-2.5 pr-4 font-mono-tabular">D{rec.missionDay}</td>
-                      <td className="py-2.5 pr-4 font-medium">{t(`indicators.${rec.indicator}`)}</td>
-                      <td className="py-2.5 pr-4 text-right font-mono-tabular font-semibold">
-                        {rec.secondaryValue ? `${rec.value}/${rec.secondaryValue}` : rec.value} {rec.unit}
+                      <td className="py-2.5 pe-4 font-mono-tabular">
+                        {t('common.dayShort')}
+                        {formatLocaleNumber(rec.missionDay, language)}
                       </td>
-                      <td className="py-2.5 pr-4 text-xs">
+                      <td className="py-2.5 pe-4 font-medium">{t(`indicators.${rec.indicator}`)}</td>
+                      <td className="py-2.5 pe-4 text-end font-mono-tabular font-semibold" dir="ltr">
+                        {rec.secondaryValue
+                          ? `${formatLocaleNumber(rec.value, language)}/${formatLocaleNumber(rec.secondaryValue, language)}`
+                          : formatLocaleNumber(rec.value, language)}{' '}
+                        {rec.unit}
+                      </td>
+                      <td className="py-2.5 pe-4 text-xs">
                         {rec.source === 'contactless' ? t('common.contactless') : t('common.manual')}
                         {rec.indicative ? ` (${t('common.indicative')})` : ''}
                       </td>
-                      <td className="py-2.5 pr-4 text-right font-mono-tabular text-xs">
-                        {rec.confidence}%
+                      <td className="py-2.5 pe-4 text-end font-mono-tabular text-xs">
+                        {formatLocaleNumber(rec.confidence, language)}%
                       </td>
                       <td className="py-2.5">
                         <StatusBadge status={status} />
@@ -135,3 +154,4 @@ export const PatientFilePage: React.FC = () => {
     </motion.div>
   );
 };
+
