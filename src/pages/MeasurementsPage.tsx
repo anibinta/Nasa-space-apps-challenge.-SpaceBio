@@ -27,7 +27,7 @@ const ENTRY_INDICATORS: IndicatorId[] = [
 ];
 
 export const MeasurementsPage: React.FC = () => {
-  const { isGuest, measurements, addMeasurement, mission } = useSpaceBio();
+  const { measurements, addMeasurement, mission, linkStatus } = useSpaceBio();
   const { t, language } = useTranslation();
 
   // Manual entry state
@@ -60,10 +60,6 @@ export const MeasurementsPage: React.FC = () => {
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
-    if (isGuest) {
-      setFormError(t('welcome.guestReadOnlyError'));
-      return;
-    }
 
     const parsed = Number(valueInput);
     const parsedDia = indicator === 'blood_pressure_sys' ? Number(diastolicInput) : undefined;
@@ -83,15 +79,15 @@ export const MeasurementsPage: React.FC = () => {
       notes,
     });
     setNotes('');
-    setFormSuccess(t('measurements.savedSuccess'));
+    setFormSuccess(
+      linkStatus === 'lost'
+        ? t('notifications.queuedMeasurementNotice')
+        : t('measurements.savedSuccess')
+    );
   };
 
   const handleRunContactless = () => {
     setContactlessError(null);
-    if (isGuest) {
-      setContactlessError(t('welcome.guestReadOnlyError'));
-      return;
-    }
     if (!cameraEnabled || !micEnabled) {
       setContactlessError(t('measurements.errors.sensorRequired'));
       return;
@@ -264,7 +260,7 @@ export const MeasurementsPage: React.FC = () => {
                   </div>
                 )}
 
-                <Button type="submit" disabled={isGuest}>
+                <Button type="submit" data-testid="submit-measurement-btn">
                   {t('measurements.submitButton')}
                 </Button>
               </form>
@@ -377,7 +373,7 @@ export const MeasurementsPage: React.FC = () => {
                     </div>
                   )}
 
-                  <Button type="button" onClick={handleRunContactless} disabled={scanning || isGuest}>
+                  <Button type="button" onClick={handleRunContactless} disabled={scanning}>
                     <ScanLine className="h-4 w-4" aria-hidden="true" />
                     <span>
                       {scanning ? t('measurements.scanning') : t('measurements.runScan')}

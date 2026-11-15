@@ -182,7 +182,7 @@ const AppRoutes: React.FC = () => {
               <Route
                 path="/alerts"
                 element={
-                  <RequireRole allowed={['doctor']}>
+                  <RequireRole allowed={['astronaut', 'doctor']}>
                     <DoctorAlertsPage />
                   </RequireRole>
                 }

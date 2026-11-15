@@ -30,15 +30,21 @@ import {
   TrendingUp,
   User,
   Users,
+  Wifi,
+  WifiOff,
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSpaceBio } from '../../context/SpaceBioContext';
 import { getLanguageOption, SUPPORTED_LANGUAGES } from '../../data/languages';
 import { useTranslation } from '../../i18n';
-import { formatLocaleNumber } from '../../i18n/format';
+import { formatLocaleNumber, interpolateTemplate } from '../../i18n/format';
 import { pickRandomBackground } from '../../lib/backgrounds';
-import type { Language, UserRole } from '../../types/health';
+import {
+  countDoctorUnreadNotifications,
+  formatRelativeSyncParts,
+} from '../../lib/notifications';
+import type { Language, LinkStatus, UserRole } from '../../types/health';
 import { cn } from '../ui/cn';
 import { Button } from '../ui/button';
 import {
@@ -50,6 +56,7 @@ import {
   DialogTrigger,
 } from '../ui/dialog';
 import { FlagIcon } from './FlagIcon';
+import { CommunicationProcedureCard } from './CommunicationProcedureCard';
 
 interface NavItem {
   to: string;
@@ -65,6 +72,7 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { to: '/trends', labelKey: 'nav.trends', icon: TrendingUp },
     { to: '/bone-health', labelKey: 'nav.boneHealth', icon: Bone },
     { to: '/body-map', labelKey: 'nav.bodyMap', icon: Compass, mobilePrimary: true },
+    { to: '/alerts', labelKey: 'nav.alerts', icon: Bell, mobilePrimary: true },
     { to: '/anomalies', labelKey: 'nav.anomalies', icon: AlertTriangle },
     { to: '/reports', labelKey: 'nav.reports', icon: FileText },
     { to: '/mission', labelKey: 'nav.mission', icon: Rocket },
@@ -131,6 +139,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     dismissTransitionBanner,
     syncError,
     clearSyncError,
+    linkStatus,
+    setLinkStatus,
+    lastSyncAt,
+    simulatedNowMs,
+    notifications,
+    outboxQueue,
+    emergencyDialogOpen,
+    setEmergencyDialogOpen,
   } = useSpaceBio();
   const { t, isTranslationInProgress } = useTranslation();
 
@@ -138,9 +154,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [bgLoaded, setBgLoaded] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
 
   const infoRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const linkRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setBgLoaded(false);
@@ -155,11 +173,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
       }
+      if (linkRef.current && !linkRef.current.contains(e.target as Node)) {
+        setLinkOpen(false);
+      }
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setInfoOpen(false);
         setProfileOpen(false);
+        setLinkOpen(false);
       }
     };
     document.addEventListener('mousedown', onPointerDown);
@@ -171,6 +193,23 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }, []);
 
   const navItems = ROLE_NAV_ITEMS[role];
+  const unreadNotifCount = countDoctorUnreadNotifications(notifications);
+  const syncParts = formatRelativeSyncParts(lastSyncAt, simulatedNowMs);
+  const syncRelativeLabel =
+    syncParts.unit === 'justNow'
+      ? t('linkStatus.justNow')
+      : syncParts.unit === 'seconds'
+        ? interpolateTemplate(t('linkStatus.secondsAgo'), {
+            count: formatLocaleNumber(syncParts.value, language),
+          })
+        : syncParts.unit === 'minutes'
+          ? interpolateTemplate(t('linkStatus.minutesAgo'), {
+              count: formatLocaleNumber(syncParts.value, language),
+            })
+          : interpolateTemplate(t('linkStatus.hoursAgo'), {
+              count: formatLocaleNumber(syncParts.value, language),
+            });
+  const isDemoMode = isGuest || !user;
   const activeError = authError || syncError;
   const roleBadge = ROLE_HEADER_BADGE[role];
   const RoleIcon = roleBadge.icon;
@@ -235,6 +274,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label={t('common.menuNavigation')}>
             {navItems.map((item) => {
               const Icon = item.icon;
+              const showBadge = role === 'doctor' && item.to === '/alerts' && unreadNotifCount > 0;
               return (
                 <NavLink
                   key={item.to}
@@ -242,15 +282,25 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   end={item.to === '/'}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                      'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                       isActive
                         ? activeNavAccent
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-cyan-500/10 dark:hover:text-slate-100'
                     )
                   }
                 >
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{t(item.labelKey)}</span>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{t(item.labelKey)}</span>
+                  </span>
+                  {showBadge && (
+                    <span
+                      data-testid="sidebar-alerts-badge"
+                      className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 font-mono-tabular text-[11px] font-bold text-white"
+                    >
+                      {formatLocaleNumber(unreadNotifCount, language)}
+                    </span>
+                  )}
                 </NavLink>
               );
             })}
@@ -305,8 +355,98 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </div>
 
             <div className="ms-auto flex max-w-full items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Top-bar Link Status Indicator (Active / Degraded / Lost + time since last sync) */}
+              <div className="relative" ref={linkRef}>
+                <button
+                  type="button"
+                  data-testid="link-status-indicator"
+                  aria-expanded={linkOpen}
+                  aria-label={`${t('linkStatus.label')}: ${t(`linkStatus.${linkStatus}`)}`}
+                  onClick={() => {
+                    setLinkOpen((v) => !v);
+                    setInfoOpen(false);
+                    setProfileOpen(false);
+                  }}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-[11px] font-medium transition-colors sm:px-2.5 sm:text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                    linkStatus === 'active'
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                      : linkStatus === 'degraded'
+                        ? 'border-amber-500/45 bg-amber-500/15 text-amber-900 dark:text-amber-200'
+                        : 'border-rose-500/60 bg-rose-500/15 text-rose-800 dark:text-rose-200'
+                  )}
+                >
+                  {linkStatus === 'lost' ? (
+                    <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <Wifi className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="font-semibold">{t(`linkStatus.${linkStatus}`)}</span>
+                  <span className="hidden md:inline font-mono-tabular opacity-80">
+                    · {syncRelativeLabel}
+                  </span>
+                </button>
+
+                {linkOpen && (
+                  <div
+                    role="dialog"
+                    data-testid="link-status-popover"
+                    aria-label={t('linkStatus.label')}
+                    className="absolute end-0 top-10 z-50 w-64 rounded-xl border border-cyan-400/30 bg-white p-3.5 text-xs shadow-xl dark:bg-[#0b1424] dark:text-slate-200 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {t('linkStatus.label')}: {t(`linkStatus.${linkStatus}`)}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {t('common.simulatedData')}
+                      </span>
+                    </div>
+                    <div className="font-mono-tabular text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
+                      <div>
+                        {t('linkStatus.lastSync')}: {syncRelativeLabel}
+                      </div>
+                      <div>
+                        {interpolateTemplate(t('linkStatus.queuedCount'), {
+                          count: formatLocaleNumber(outboxQueue.length, language),
+                        })}
+                      </div>
+                    </div>
+
+                    {isDemoMode && (
+                      <div className="border-t border-slate-200 pt-2 dark:border-slate-800 space-y-1.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          {t('linkStatus.modeSwitcherHint')}
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {(['active', 'degraded', 'lost'] as LinkStatus[]).map((st) => (
+                            <button
+                              key={st}
+                              type="button"
+                              data-testid={`set-link-${st}`}
+                              onClick={() => {
+                                setLinkStatus(st);
+                                setLinkOpen(false);
+                              }}
+                              className={cn(
+                                'rounded-md border px-2 py-1 text-[11px] font-medium transition-colors',
+                                linkStatus === st
+                                  ? 'border-cyan-500 bg-cyan-500/20 text-cyan-900 dark:text-cyan-200'
+                                  : 'border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800'
+                              )}
+                            >
+                              {t(`linkStatus.${st}`)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Always-visible On-board Emergency button */}
-              <Dialog>
+              <Dialog open={emergencyDialogOpen} onOpenChange={setEmergencyDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
                     type="button"
@@ -319,7 +459,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     <span className="whitespace-nowrap">{t('header.emergencyBtn')}</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>{t('header.emergencyTitle')}</DialogTitle>
                     <DialogDescription>{t('chat.emergencyBanner')}</DialogDescription>
@@ -329,6 +469,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     <p>{t('chat.emergencySteps.1')}</p>
                     <p>{t('chat.emergencySteps.2')}</p>
                   </div>
+                  <CommunicationProcedureCard />
                 </DialogContent>
               </Dialog>
 
@@ -561,22 +702,66 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-4 py-4 pb-8 sm:px-6 lg:py-5">
             {/* Tablet/Mobile quick route pills */}
             <div className="flex lg:hidden items-center gap-1 overflow-x-auto pb-1 text-xs">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
-                  className={({ isActive }) =>
-                    cn(
-                      'whitespace-nowrap rounded-md px-2.5 py-1 font-medium transition-colors shrink-0',
-                      isActive ? activeNavAccent : 'text-slate-600 dark:text-slate-300'
-                    )
-                  }
-                >
-                  {t(item.labelKey)}
-                </NavLink>
-              ))}
+              {navItems.map((item) => {
+                const showBadge = role === 'doctor' && item.to === '/alerts' && unreadNotifCount > 0;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/'}
+                    className={({ isActive }) =>
+                      cn(
+                        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 font-medium transition-colors shrink-0',
+                        isActive ? activeNavAccent : 'text-slate-600 dark:text-slate-300'
+                      )
+                    }
+                  >
+                    <span>{t(item.labelKey)}</span>
+                    {showBadge && (
+                      <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+                        {formatLocaleNumber(unreadNotifCount, language)}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
+
+            {linkStatus === 'lost' && (
+              <div
+                role="status"
+                data-testid="link-lost-banner"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-500/50 bg-rose-500/15 px-4 py-2.5 text-xs font-medium text-rose-900 dark:text-rose-200"
+              >
+                <div className="flex items-center gap-2">
+                  <WifiOff className="h-4 w-4 shrink-0 text-rose-500" aria-hidden="true" />
+                  <span>{t('linkStatus.lostBanner')}</span>
+                </div>
+                <span className="font-mono-tabular text-[11px]">
+                  {interpolateTemplate(t('linkStatus.queuedCount'), {
+                    count: formatLocaleNumber(outboxQueue.length, language),
+                  })}
+                </span>
+              </div>
+            )}
+
+            {linkStatus === 'degraded' && (
+              <div
+                role="status"
+                data-testid="link-degraded-banner"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/45 bg-amber-500/15 px-4 py-2 text-xs font-medium text-amber-900 dark:text-amber-200"
+              >
+                <div className="flex items-center gap-2">
+                  <Wifi className="h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+                  <span>{t('linkStatus.degradedBanner')}</span>
+                </div>
+                <span className="font-mono-tabular text-[11px]">
+                  {interpolateTemplate(t('linkStatus.queuedCount'), {
+                    count: formatLocaleNumber(outboxQueue.length, language),
+                  })}
+                </span>
+              </div>
+            )}
 
             {isTranslationInProgress && (
               <div

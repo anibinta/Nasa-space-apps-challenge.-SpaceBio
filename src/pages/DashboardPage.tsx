@@ -2,9 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
+  AlertOctagon,
   ArrowRight,
+  Bell,
   Brain,
+  CheckCircle2,
   Clock,
+  PhoneCall,
   PlusCircle,
   Radio,
   Rocket,
@@ -79,6 +83,10 @@ export const DashboardPage: React.FC = () => {
     measurements,
     dailyMetrics,
     profile,
+    alerts,
+    notifications,
+    linkStatus,
+    setEmergencyDialogOpen,
   } = useSpaceBio();
   const { t, language } = useTranslation();
   const navigate = useNavigate();
@@ -674,6 +682,106 @@ export const DashboardPage: React.FC = () => {
           </Card>
         </section>
       </div>
+
+      {/* Onboard Alert & Notification Status Card (Astronaut) */}
+      <Card
+        data-testid="dashboard-notifications-card"
+        className={
+          alerts.some((a) => a.severity === 'critical' && !a.acknowledged)
+            ? 'border-rose-500/75 bg-rose-500/10 dark:border-rose-500/70 dark:bg-rose-950/30'
+            : undefined
+        }
+      >
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <Bell className="h-4.5 w-4.5 text-cyan-400" aria-hidden="true" />
+              <span>{t('notifications.astronautStatusTitle')}</span>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                {t('common.simulatedData')}
+              </span>
+              <Link
+                to="/alerts"
+                className="text-xs font-semibold text-cyan-700 underline underline-offset-2 hover:text-cyan-600 dark:text-cyan-300"
+              >
+                {t('nav.alerts')}
+              </Link>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {alerts.length === 0 ? (
+            <div className="flex items-center gap-2.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
+              <CheckCircle2 className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
+              <span>{t('notifications.astronautNoAlerts')}</span>
+            </div>
+          ) : (
+            alerts.map((al) => {
+              const notif = notifications.find((n) => n.alertId === al.id);
+              const isCriticalActive = al.severity === 'critical' && !al.acknowledged;
+              return (
+                <div
+                  key={al.id}
+                  data-testid={`dashboard-alert-${al.id}`}
+                  className={
+                    isCriticalActive
+                      ? 'flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-500/70 bg-rose-500/15 p-3.5 text-rose-950 dark:text-rose-100'
+                      : 'flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-[#070d17]/75'
+                  }
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isCriticalActive && (
+                        <AlertOctagon
+                          className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span className="text-sm font-semibold">{t(al.titleKey)}</span>
+                      <StatusBadge
+                        status={
+                          al.severity === 'critical'
+                            ? 'alert'
+                            : al.severity === 'warning'
+                              ? 'watch'
+                              : 'nominal'
+                        }
+                      />
+                      {notif && (
+                        <span className="rounded border border-cyan-400/35 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
+                          {t('notifications.simulatedLabel')} ·{' '}
+                          {t(`notifications.statuses.${notif.status}`)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs opacity-85">{t('notifications.disclaimerLine')}</p>
+                    {linkStatus === 'lost' && isCriticalActive && (
+                      <p className="text-xs font-medium text-rose-700 dark:text-rose-300">
+                        {t('linkStatus.lostBanner')}
+                      </p>
+                    )}
+                  </div>
+
+                  {isCriticalActive && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      data-testid="dashboard-emergency-btn"
+                      onClick={() => setEmergencyDialogOpen(true)}
+                    >
+                      <PhoneCall className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{t('header.emergencyBtn')}</span>
+                    </Button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };

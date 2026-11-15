@@ -25,11 +25,13 @@ import {
   DialogTrigger,
 } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
+import { CommunicationProcedureCard } from '../components/shared/CommunicationProcedureCard';
 
 export const ChatPage: React.FC = () => {
   const {
     isGuest,
     effectiveMode,
+    linkStatus,
     chatThreads,
     chatMessages,
     sendChatMessage,
@@ -41,6 +43,7 @@ export const ChatPage: React.FC = () => {
   const [activeThreadId, setActiveThreadId] = useState(chatThreads[0].id);
   const [draft, setDraft] = useState('');
   const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | undefined>(undefined);
+  const [queuedNotice, setQueuedNotice] = useState(false);
 
   const activeThread = chatThreads.find((th) => th.id === activeThreadId) ?? chatThreads[0];
   const threadMessages = chatMessages.filter((m) => m.threadId === activeThread.id);
@@ -48,9 +51,9 @@ export const ChatPage: React.FC = () => {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isGuest) return;
     if (!draft.trim() && !pendingAttachment) return;
     sendChatMessage(activeThread.id, draft, pendingAttachment);
+    setQueuedNotice(linkStatus === 'lost');
     setDraft('');
     setPendingAttachment(undefined);
   };
@@ -78,7 +81,7 @@ export const ChatPage: React.FC = () => {
               {t('chat.emergencyLink')}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t('chat.emergencyModalTitle')}</DialogTitle>
               <DialogDescription>{t('common.safetyNotice')}</DialogDescription>
@@ -88,6 +91,7 @@ export const ChatPage: React.FC = () => {
                 <li key={step}>{step}</li>
               ))}
             </ol>
+            <CommunicationProcedureCard />
           </DialogContent>
         </Dialog>
       </div>
@@ -337,15 +341,23 @@ export const ChatPage: React.FC = () => {
               </Button>
             </div>
 
+            {queuedNotice && linkStatus === 'lost' && (
+              <div
+                role="status"
+                className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-200"
+              >
+                {t('notifications.queuedMessageNotice')}
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <Input
                 value={draft}
-                disabled={isGuest}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder={isGuest ? t('welcome.guestReadOnlyError') : t('chat.messagePlaceholder')}
+                placeholder={t('chat.messagePlaceholder')}
                 aria-label={t('chat.messagePlaceholder')}
               />
-              <Button type="submit" disabled={isGuest}>
+              <Button type="submit">
                 <Send className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
                 <span>{t('chat.sendBtn')}</span>
               </Button>

@@ -328,3 +328,83 @@ export interface SiteEnvironment {
   heatIndexC: number;
   barometricHpa: number;
 }
+
+export type LinkStatus = 'active' | 'degraded' | 'lost';
+
+export type NotificationStatus =
+  | 'queued'
+  | 'sent'
+  | 'delivered'
+  | 'read'
+  | 'acknowledged'
+  | 'escalated';
+
+export type NotificationRecipient =
+  | 'on_duty_doctor'
+  | 'backup_doctor'
+  | 'ground_center'
+  | 'journal_only';
+
+export interface AlertNotificationRecord {
+  id: string;
+  alertId: string;
+  patientId: string;
+  patientName: string;
+  callSign: string;
+  severity: AlertSeverity;
+  metric: IndicatorId | 'bone_density' | 'sleep_debt';
+  value: string;
+  threshold: string;
+  thresholdKey?: string;
+  thresholdParams?: Record<string, string | number>;
+  timestamp: string;
+  suggestedAction: string;
+  suggestedActionKey: string;
+  recipient: NotificationRecipient;
+  recipientName: string;
+  backupDoctorName?: string;
+  groundCenterLogged: boolean;
+  status: NotificationStatus;
+  queuedAt?: string;
+  sentAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
+  acknowledgedAt?: string;
+  escalatedAt?: string;
+  escalatedTo?: string;
+  recordLink: string;
+  simulated: true;
+}
+
+export type OutboxItemKind = 'measurement' | 'notification' | 'message';
+
+export interface OutboxQueueItem {
+  id: string;
+  seq: number;
+  kind: OutboxItemKind;
+  priority: number;
+  severity?: AlertSeverity;
+  timestamp: string;
+  payloadId: string;
+  summaryKey: string;
+  summaryParams?: Record<string, string | number>;
+}
+
+export interface JournalEntry {
+  id: string;
+  timestamp: string;
+  eventKey: string;
+  eventParams?: Record<string, string | number>;
+  notificationId?: string;
+  patientId?: string;
+  patientName?: string;
+  recipient?: string;
+  status: NotificationStatus;
+  groundCenterLogged?: boolean;
+  sentAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
+  acknowledgedAt?: string;
+  escalatedAt?: string;
+}
+

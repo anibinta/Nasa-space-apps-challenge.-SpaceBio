@@ -12,7 +12,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 export const PatientFilePage: React.FC = () => {
-  const { assignedPatients, selectedPatientId, setSelectedPatientId } = useSpaceBio();
+  const { assignedPatients, selectedPatientId, setSelectedPatientId, acknowledgeAlert } = useSpaceBio();
   const { t, language } = useTranslation();
   const navigate = useNavigate();
 
@@ -90,9 +90,15 @@ export const PatientFilePage: React.FC = () => {
           <CardDescription>{t('common.simulatedData')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {patient.alerts.map((al) => (
-            <AlertCard key={al.id} alert={al} onAcknowledge={() => undefined} />
-          ))}
+          {patient.alerts.length === 0 ? (
+            <p className="text-sm text-emerald-700 dark:text-emerald-300">
+              {t('notifications.astronautNoAlerts')}
+            </p>
+          ) : (
+            patient.alerts.map((al) => (
+              <AlertCard key={al.id} alert={al} onAcknowledge={acknowledgeAlert} />
+            ))
+          )}
         </CardContent>
       </Card>
 

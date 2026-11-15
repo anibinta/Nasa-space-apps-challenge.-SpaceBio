@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { CheckCircle2, Download, Repeat, Trash2 } from 'lucide-react';
+import { CheckCircle2, Clock, Download, FlaskConical, Repeat, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useSpaceBio } from '../context/SpaceBioContext';
 import { getLanguageOption, SUPPORTED_LANGUAGES } from '../data/languages';
 import { useTranslation } from '../i18n';
-import { formatLocaleDateTime } from '../i18n/format';
+import { formatLocaleDateTime, formatLocaleNumber } from '../i18n/format';
 import type { Language, TextSize, ThemeMode } from '../types/health';
 import { FlagIcon } from '../components/shared/FlagIcon';
 import { Button } from '../components/ui/button';
@@ -24,6 +25,7 @@ import { Input, Label, Select } from '../components/ui/input';
 const DEFAULT_REF_COND_EN = 'Healthy adult · Low-Earth orbit endurance cohort';
 
 export const SettingsPage: React.FC = () => {
+  const { user } = useAuth();
   const {
     isGuest,
     role,
@@ -41,8 +43,19 @@ export const SettingsPage: React.FC = () => {
     updateProfile,
     exportAllLocalDataJson,
     resetAllLocalData,
+    linkStatus,
+    simulatedNowMs,
+    outboxQueue,
+    loadHealthyBaselineScenario,
+    loadSleepAnomalyScenario,
+    simulateLinkLoss,
+    restoreLink,
+    advanceSimulatedMinutes,
   } = useSpaceBio();
   const { t, isTranslationInProgress } = useTranslation();
+
+  const isDemoMode = isGuest || !user;
+  const [demoFeedbackKey, setDemoFeedbackKey] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState(profile.fullName);
   const [age, setAge] = useState(String(profile.age));
@@ -172,6 +185,137 @@ export const SettingsPage: React.FC = () => {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Demo mode controls (visible only in demo mode) */}
+      {isDemoMode && (
+        <Card data-testid="demo-mode-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FlaskConical className="h-4.5 w-4.5 text-cyan-400" aria-hidden="true" />
+              <span>{t('demoControls.sectionTitle')}</span>
+            </CardTitle>
+            <CardDescription>{t('common.simulatedData')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950 dark:text-white">
+                {t('demoControls.testScenariosTitle')}
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+                {t('demoControls.testScenariosSubtitle')}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-mono-tabular dark:border-slate-800 dark:bg-[#070d17]/75">
+              <div>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {t('demoControls.simClockLabel')}:{' '}
+                </span>
+                <strong className="text-slate-900 dark:text-white">
+                  {formatLocaleDateTime(new Date(simulatedNowMs).toISOString(), language)}
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {t('linkStatus.label')}:{' '}
+                </span>
+                <strong className="text-slate-900 dark:text-white">
+                  {t(`linkStatus.${linkStatus}`)}
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {t('demoControls.queuedItemsLabel')}:{' '}
+                </span>
+                <strong data-testid="demo-queued-count" className="text-slate-900 dark:text-white">
+                  {formatLocaleNumber(outboxQueue.length, language)}
+                </strong>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="scenario-healthy-btn"
+                onClick={() => {
+                  loadHealthyBaselineScenario();
+                  setDemoFeedbackKey('demoControls.feedbackHealthy');
+                }}
+              >
+                <span>{t('demoControls.loadHealthy')}</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="scenario-sleep-btn"
+                onClick={() => {
+                  loadSleepAnomalyScenario();
+                  setDemoFeedbackKey('demoControls.feedbackSleep');
+                }}
+              >
+                <span>{t('demoControls.loadSleepAnomaly')}</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                data-testid="scenario-link-loss-btn"
+                onClick={() => {
+                  simulateLinkLoss();
+                  setDemoFeedbackKey('demoControls.feedbackLinkLost');
+                }}
+              >
+                <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t('demoControls.simulateLinkLoss')}</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                data-testid="scenario-restore-link-btn"
+                onClick={() => {
+                  restoreLink();
+                  setDemoFeedbackKey('demoControls.feedbackRestored');
+                }}
+              >
+                <Wifi className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t('demoControls.restoreLink')}</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="amber"
+                size="sm"
+                data-testid="scenario-advance-30m-btn"
+                onClick={() => {
+                  advanceSimulatedMinutes(30);
+                  setDemoFeedbackKey('demoControls.feedbackAdvanced');
+                }}
+              >
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t('demoControls.advance30Min')}</span>
+              </Button>
+            </div>
+
+            {demoFeedbackKey && (
+              <div
+                role="status"
+                data-testid="demo-scenario-feedback"
+                className="flex items-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3.5 py-2 text-xs font-medium text-cyan-900 dark:text-cyan-200"
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-500" aria-hidden="true" />
+                <span>{t(demoFeedbackKey)}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Interface & Environment */}
       <Card>
