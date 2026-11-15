@@ -1,198 +1,289 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Bone, Layers } from 'lucide-react';
-import { useSpaceBio } from '../context/SpaceBioContext';
-import { BODY_REGIONS } from '../data/simulatedData';
+import { Activity, ShieldCheck } from 'lucide-react';
 import { useTranslation } from '../i18n';
-import { BodyScene3D, detectSoftwareWebGL } from '../components/body/BodyScene3D';
-import { BodySilhouette2D } from '../components/body/BodySilhouette2D';
+import {
+  buildWaveformPath,
+  DEFAULT_BODY_MAP_ORGAN,
+  DEFAULT_BODY_MAP_SCENARIO,
+  getOrganStatus,
+  getOrganWaveformType,
+  getScenarioState,
+  type BodyOrganFocus,
+  type BodyScenarioId,
+} from '../lib/bodyMonitor';
+import { HolographicBodyMonitor } from '../components/body/HolographicBodyMonitor';
 import { StatusBadge } from '../components/shared/StatusBadge';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Switch } from '../components/ui/switch';
-import { Label } from '../components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
 export const BodyMapPage: React.FC = () => {
-  const { selectedBodyRegion, setSelectedBodyRegion } = useSpaceBio();
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const boneFocusMode = searchParams.get('bone') === '1';
+  const [reducedMotion, setReducedMotion] = useState(false);
 
-  const [webglProbe] = useState(() => detectSoftwareWebGL());
-  const [use2dFallback, setUse2dFallback] = useState<boolean>(() => !webglProbe.supported);
-  const [showSkeletonOverlay, setShowSkeletonOverlay] = useState<boolean>(boneFocusMode);
+  // Default scenario: Tempête solaire (86 bpm rose badge); Default right organ: Heart
+  const [scenarioId, setScenarioId] = useState<BodyScenarioId>(DEFAULT_BODY_MAP_SCENARIO);
+  const [focusedOrgan, setFocusedOrgan] = useState<BodyOrganFocus>(DEFAULT_BODY_MAP_ORGAN);
 
   useEffect(() => {
-    if (boneFocusMode) {
-      setShowSkeletonOverlay(true);
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (mq) {
+      setReducedMotion(mq.matches);
+      const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
     }
-  }, [boneFocusMode]);
+    return undefined;
+  }, []);
 
-  const activeRegionInfo =
-    BODY_REGIONS.find((r) => r.id === selectedBodyRegion) ?? BODY_REGIONS[0];
+  const scenario = getScenarioState(scenarioId);
+  const organStatus = getOrganStatus(focusedOrgan, scenario);
+  const waveformType = getOrganWaveformType(focusedOrgan);
+  const waveformPath = buildWaveformPath(waveformType, scenario.heartRateBpm, 260, 56);
+
+  const statusAccent =
+    organStatus === 'alert'
+      ? '#fb7185'
+      : organStatus === 'watch'
+        ? '#f59e0b'
+        : '#34d399';
+
+  const handleScenarioChange = (next: BodyScenarioId) => {
+    setScenarioId(next);
+    setFocusedOrgan(getScenarioState(next).focusedOrgan);
+  };
+
+  const organMetrics =
+    focusedOrgan === 'heart'
+      ? [
+          {
+            label: t('dashboard.monitor.organPanel.heart.m1'),
+            value: `${scenario.heartRateBpm}`,
+            unit: 'bpm',
+          },
+          {
+            label: t('dashboard.monitor.organPanel.heart.m2'),
+            value: `${scenario.systolicFlowLpm}`,
+            unit: 'L/min',
+          },
+          {
+            label: t('dashboard.monitor.organPanel.heart.m3'),
+            value: `${scenario.systolicBp}/${scenario.diastolicBp}`,
+            unit: 'mmHg',
+          },
+          {
+            label: t('dashboard.monitor.organPanel.heart.m4'),
+            value: `${scenario.hrvMs}`,
+            unit: 'ms',
+          },
+        ]
+      : focusedOrgan === 'lungs'
+        ? [
+            {
+              label: t('dashboard.monitor.organPanel.lungs.m1'),
+              value: `${scenario.spO2Percent}`,
+              unit: '%',
+            },
+            {
+              label: t('dashboard.monitor.organPanel.lungs.m2'),
+              value: `${scenario.respiratoryRate}`,
+              unit: '/min',
+            },
+            {
+              label: t('dashboard.monitor.organPanel.lungs.m3'),
+              value: `${scenario.vitalCapacityL}`,
+              unit: 'L',
+            },
+            {
+              label: t('dashboard.monitor.organPanel.lungs.m4'),
+              value: `${scenario.etCo2MmHg}`,
+              unit: 'mmHg',
+            },
+          ]
+        : focusedOrgan === 'brain'
+          ? [
+              {
+                label: t('dashboard.monitor.organPanel.brain.m1'),
+                value: `${scenario.intracranialPressureMmHg}`,
+                unit: 'mmHg',
+              },
+              {
+                label: t('dashboard.monitor.organPanel.brain.m2'),
+                value: `${scenario.cognitiveIndexPercent}`,
+                unit: '%',
+              },
+              {
+                label: t('dashboard.monitor.organPanel.brain.m3'),
+                value: `${scenario.radiationDoseMsv}`,
+                unit: 'mSv',
+              },
+              {
+                label: t('dashboard.monitor.organPanel.brain.m4'),
+                value: `${scenario.cerebralO2Percent}`,
+                unit: '%',
+              },
+            ]
+          : [
+              {
+                label: t('dashboard.monitor.organPanel.skeleton.m1'),
+                value: `${scenario.femoralBmd}`,
+                unit: 'g/cm²',
+              },
+              {
+                label: t('dashboard.monitor.organPanel.skeleton.m2'),
+                value: `${scenario.lumbarBmd}`,
+                unit: 'g/cm²',
+              },
+              {
+                label: t('dashboard.monitor.organPanel.skeleton.m3'),
+                value: `${scenario.serumCalciumMmol}`,
+                unit: 'mmol/L',
+              },
+              {
+                label: t('dashboard.monitor.organPanel.skeleton.m4'),
+                value: `${scenario.vitaminDNgMl}`,
+                unit: 'ng/mL',
+              },
+            ];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={reducedMotion ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="space-y-6"
+      transition={{ duration: reducedMotion ? 0 : 0.2 }}
+      className="space-y-5"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Page Title & Subtitle */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
             {t('bodyMap.title')}
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            {t('bodyMap.subtitle')} · {t('common.simulatedData')}
+            {t('bodyMap.subtitle')}
           </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="skeleton-overlay-switch"
-              checked={showSkeletonOverlay}
-              onCheckedChange={setShowSkeletonOverlay}
-            />
-            <Label htmlFor="skeleton-overlay-switch" className="text-xs cursor-pointer">
-              {t('bodyMap.controls.skeletonToggle')}
-            </Label>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setUse2dFallback((prev) => !prev)}
-            disabled={!webglProbe.supported}
-          >
-            <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>
-              {use2dFallback
-                ? t('bodyMap.controls.fallbackToggle3d')
-                : t('bodyMap.controls.fallbackToggle2d')}
-            </span>
-          </Button>
         </div>
       </div>
 
-      {!webglProbe.supported && (
-        <div
-          role="note"
-          className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-200"
+      {/* Desktop: Centre Model (~60%) | Right Organ Panel (~40%); Mobile: Stacked, model first */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,60fr)_minmax(310px,40fr)] items-stretch">
+        <HolographicBodyMonitor
+          scenarioId={scenarioId}
+          scenario={scenario}
+          onScenarioChange={handleScenarioChange}
+          focusedOrgan={focusedOrgan}
+          onSelectOrgan={setFocusedOrgan}
+        />
+
+        {/* Right Side Organ Panel (Heart selected by default) */}
+        <Card
+          data-testid="right-organ-panel"
+          data-organ={focusedOrgan}
+          className="flex flex-col justify-between border-cyan-400/30 bg-[#0b1424] text-slate-100"
         >
-          {t('bodyMap.controls.webglUnavailableNotice')}
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-12 items-start">
-        {/* Left/Center Viewport */}
-        <div className="lg:col-span-7 space-y-4">
-          {use2dFallback ? (
-            <BodySilhouette2D
-              regions={BODY_REGIONS}
-              selectedRegion={selectedBodyRegion}
-              showSkeletonOverlay={showSkeletonOverlay}
-              highlightBoneRegions={boneFocusMode}
-              onSelectRegion={setSelectedBodyRegion}
-            />
-          ) : (
-            <BodyScene3D
-              regions={BODY_REGIONS}
-              selectedRegion={selectedBodyRegion}
-              showSkeletonOverlay={showSkeletonOverlay}
-              highlightBoneRegions={boneFocusMode}
-              onSelectRegion={setSelectedBodyRegion}
-              onContextLostFallback={() => setUse2dFallback(true)}
-              isSoftwareGl={webglProbe.isSoftwareGl}
-            />
-          )}
-
-          {/* Keyboard & Screen-Reader Accessible List of All Regions */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">{t('bodyMap.regionListTitle')}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-2 sm:grid-cols-2">
-              {BODY_REGIONS.map((region) => {
-                const isSelected = region.id === selectedBodyRegion;
-                return (
-                  <button
-                    key={region.id}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => setSelectedBodyRegion(region.id)}
-                    className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
-                      isSelected
-                        ? 'border-cyan-500 bg-cyan-500/15 text-slate-950 dark:text-white'
-                        : 'border-slate-200 hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <span className="font-medium truncate">
-                      {t(`bodyMap.regions.${region.id}.name`)}
-                    </span>
-                    <StatusBadge status={region.status} />
-                  </button>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Side Panel: Selected Region Details */}
-        <Card className="lg:col-span-5">
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <CardDescription>{t('bodyMap.panelTitle')}</CardDescription>
-                <CardTitle className="mt-1 text-xl">
-                  {t(`bodyMap.regions.${activeRegionInfo.id}.name`)}
+              <div className="space-y-1">
+                <CardTitle className="text-base font-semibold text-white">
+                  {t(`dashboard.monitor.organPanel.${focusedOrgan}.title`)}
                 </CardTitle>
+                <div className="text-[11px] text-slate-400">{t('common.simulatedData')}</div>
               </div>
-              <StatusBadge status={activeRegionInfo.status} />
+              <StatusBadge status={organStatus} />
             </div>
           </CardHeader>
-          <CardContent className="space-y-5">
-            {activeRegionInfo.boneRelated && (
-              <div className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-                <Bone className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{t('bodyMap.boneHighlightTag')}</span>
-              </div>
-            )}
 
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {t('bodyMap.functionLabel')}
-              </h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-                {t(activeRegionInfo.functionKey)}
+          <CardContent className="flex flex-1 flex-col justify-between gap-4">
+            <div className="space-y-3">
+              <p className="text-xs leading-relaxed text-slate-300">
+                {t(`dashboard.monitor.organPanel.${focusedOrgan}.summary`)}
               </p>
+
+              <div className="rounded-lg border border-cyan-400/20 bg-[#070d17]/80 p-3 text-xs">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400">
+                  {t('dashboard.monitor.organPanel.orbitalRiskLabel')}
+                </div>
+                <p className="mt-1 leading-relaxed text-slate-200">
+                  {t(`dashboard.monitor.organPanel.${focusedOrgan}.orbitalRisk`)}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {t('bodyMap.indicatorsLabel')}
-              </h3>
-              <ul className="mt-2 space-y-1.5 text-sm font-mono-tabular text-slate-800 dark:text-slate-200">
-                {activeRegionInfo.relatedIndicators.map((ind) => (
-                  <li
-                    key={ind}
-                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-800 dark:bg-[#0d162d]"
+            {/* 4 Dedicated Organ Metrics */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {organMetrics.map((m) => (
+                <div
+                  key={m.label}
+                  className="flex flex-col justify-between rounded-lg border border-cyan-400/20 bg-[#070d17]/80 px-3 py-2.5"
+                >
+                  <div className="text-[11px] leading-tight text-slate-400">{m.label}</div>
+                  <div
+                    className="mt-1.5 whitespace-nowrap font-mono-tabular text-sm font-bold text-white"
+                    dir="ltr"
                   >
-                    {ind} · {t('common.simulatedData')}
-                  </li>
-                ))}
-              </ul>
+                    {m.value}{' '}
+                    <span className="text-[10px] font-normal text-slate-400">{m.unit}</span>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {t('bodyMap.explanationLabel')}
-              </h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                {t(activeRegionInfo.explanationKey)}
+            {/* Live Organ Waveform */}
+            <div className="rounded-lg border border-cyan-400/20 bg-[#070d17] p-3">
+              <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                <span className="inline-flex items-center gap-1.5 font-medium text-slate-300">
+                  <Activity className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
+                  <span>{t(`dashboard.monitor.organPanel.${focusedOrgan}.waveform`)}</span>
+                </span>
+                <span className="font-mono-tabular text-[10px]" style={{ color: statusAccent }}>
+                  {focusedOrgan === 'heart'
+                    ? `${scenario.heartRateBpm} bpm`
+                    : focusedOrgan === 'lungs'
+                      ? `${scenario.respiratoryRate} /min`
+                      : 'LIVE'}
+                </span>
+              </div>
+
+              <div className="h-14 w-full overflow-hidden">
+                <svg
+                  data-testid="organ-waveform-svg"
+                  viewBox="0 0 260 56"
+                  className="h-full w-[200%] holo-waveform-scroll"
+                  preserveAspectRatio="none"
+                  aria-label={t(`dashboard.monitor.organPanel.${focusedOrgan}.waveform`)}
+                >
+                  <path
+                    d={waveformPath}
+                    fill="none"
+                    stroke={statusAccent}
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <g transform="translate(260, 0)">
+                    <path
+                      d={waveformPath}
+                      fill="none"
+                      stroke={statusAccent}
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            {/* Single Clinical Recommendation (Zero medication/vitamin doses) */}
+            <div
+              data-testid="organ-recommendation-box"
+              className="rounded-lg border border-cyan-400/25 bg-cyan-500/10 p-3 text-xs"
+            >
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-300">
+                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t('dashboard.monitor.organPanel.recommendationLabel')}</span>
+              </div>
+              <p className="mt-1 leading-relaxed text-slate-100">
+                {t(`dashboard.monitor.organPanel.${focusedOrgan}.rec`)}
               </p>
             </div>
           </CardContent>

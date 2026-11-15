@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SpaceBioProvider, useSpaceBio } from './context/SpaceBioContext';
 import { I18nProvider } from './i18n';
@@ -27,6 +27,14 @@ import { DoctorPatientsPage } from './pages/DoctorPatientsPage';
 import { PatientFilePage } from './pages/PatientFilePage';
 import { DoctorAlertsPage } from './pages/DoctorAlertsPage';
 import { LearningNetworkPage } from './pages/LearningNetworkPage';
+
+const ScrollToTop: React.FC = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  }, [pathname]);
+  return null;
+};
 
 const RequireRole: React.FC<{
   allowed: UserRole[];
@@ -62,6 +70,7 @@ const AppRoutes: React.FC = () => {
   return (
     <I18nProvider language={language} setLanguage={setLanguage}>
       <BrowserRouter>
+        <ScrollToTop />
         {!authReady ? (
           <main className="flex min-h-screen w-full items-center justify-center bg-[#050a18] text-sm text-slate-400">
             SpaceBio

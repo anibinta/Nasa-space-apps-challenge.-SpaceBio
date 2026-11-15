@@ -25,6 +25,7 @@ import {
   buildMiniSparklinePath,
   evaluateVitalCardStatus,
   extractSevenDayTrend,
+  getScenarioState,
 } from '../lib/bodyMonitor';
 import { calculateMissionProgress } from '../lib/healthEngine';
 import { StatusBadge } from '../components/shared/StatusBadge';
@@ -92,16 +93,22 @@ export const DashboardPage: React.FC = () => {
     return () => window.clearInterval(id);
   }, []);
 
-  const vitalsSnapshot = useMemo(() => {
+  const nominalBaseline = useMemo(() => getScenarioState('nominal'), []);
+
+  const latestVitals = useMemo(() => {
     const hrMetric = dailyMetrics.find((m) => m.id === 'heart_rate');
     const tempMetric = dailyMetrics.find((m) => m.id === 'body_temperature');
     const bpMetric = dailyMetrics.find((m) => m.id === 'blood_pressure_sys');
 
-    const heartRateBpm = hrMetric ? Math.round(hrMetric.value) : 68;
-    const spO2Percent = 98;
-    const temperatureC = tempMetric ? Number(tempMetric.value.toFixed(1)) : 36.7;
-    const systolicBp = bpMetric ? Math.round(bpMetric.value) : 134;
-    const diastolicBp = bpMetric?.secondaryValue ? Math.round(bpMetric.secondaryValue) : 84;
+    const heartRateBpm = hrMetric ? Math.round(hrMetric.value) : nominalBaseline.heartRateBpm;
+    const spO2Percent = nominalBaseline.spO2Percent;
+    const temperatureC = tempMetric
+      ? Number(tempMetric.value.toFixed(1))
+      : nominalBaseline.temperatureC;
+    const systolicBp = bpMetric ? Math.round(bpMetric.value) : nominalBaseline.systolicBp;
+    const diastolicBp = bpMetric?.secondaryValue
+      ? Math.round(bpMetric.secondaryValue)
+      : nominalBaseline.diastolicBp;
 
     return {
       heartRateBpm,
@@ -109,20 +116,26 @@ export const DashboardPage: React.FC = () => {
       temperatureC,
       systolicBp,
       diastolicBp,
-      hrTrend: extractSevenDayTrend(measurements, 'heart_rate', [65, 66, 64, 67, 68, 67, heartRateBpm]),
-      spO2Trend: [98, 98, 97, 98, 99, 98, spO2Percent],
-      tempTrend: extractSevenDayTrend(
+    };
+  }, [dailyMetrics, nominalBaseline]);
+
+  const sevenDayTrends = useMemo(
+    () => ({
+      heart_rate: extractSevenDayTrend(measurements, 'heart_rate', [64, 65, 63, 66, 65, 64, 63]),
+      spo2: [98, 98, 97, 98, 98, 99, latestVitals.spO2Percent],
+      body_temperature: extractSevenDayTrend(
         measurements,
         'body_temperature',
-        [36.5, 36.6, 36.7, 36.6, 36.7, 36.8, temperatureC]
+        [36.6, 36.5, 36.7, 36.6, 36.7, 36.6, 36.7]
       ),
-      bpTrend: extractSevenDayTrend(
+      blood_pressure_sys: extractSevenDayTrend(
         measurements,
         'blood_pressure_sys',
-        [118, 121, 124, 126, 129, 131, systolicBp]
+        [118, 120, 122, 121, 124, 126, latestVitals.systolicBp]
       ),
-    };
-  }, [dailyMetrics, measurements]);
+    }),
+    [measurements, latestVitals.spO2Percent, latestVitals.systolicBp]
+  );
 
   if (role === 'doctor') {
     return <DoctorPatientsPage />;
@@ -141,63 +154,67 @@ export const DashboardPage: React.FC = () => {
 
   const vitalCards = [
     {
-      id: 'heart_rate',
+      id: 'heart_rate' as const,
       label: t('indicators.heart_rate'),
-      value: `${vitalsSnapshot.heartRateBpm} bpm`,
+      value: `${latestVitals.heartRateBpm}`,
+      unit: 'bpm',
       refRange: t('dashboard.vitalCards.hrRef'),
-      status: evaluateVitalCardStatus('heart_rate', vitalsSnapshot.heartRateBpm),
-      trend: vitalsSnapshot.hrTrend,
-      accent: '#34d399',
+      status: evaluateVitalCardStatus('heart_rate', latestVitals.heartRateBpm),
+      trend: sevenDayTrends.heart_rate,
     },
     {
-      id: 'spo2',
+      id: 'spo2' as const,
       label: t('dashboard.monitor.spO2'),
-      value: `${vitalsSnapshot.spO2Percent}%`,
+      value: `${latestVitals.spO2Percent}`,
+      unit: '%',
       refRange: t('dashboard.vitalCards.spO2Ref'),
-      status: evaluateVitalCardStatus('spo2', vitalsSnapshot.spO2Percent),
-      trend: vitalsSnapshot.spO2Trend,
-      accent: '#38bdf8',
+      status: evaluateVitalCardStatus('spo2', latestVitals.spO2Percent),
+      trend: sevenDayTrends.spo2,
     },
     {
-      id: 'body_temperature',
+      id: 'body_temperature' as const,
       label: t('indicators.body_temperature'),
-      value: `${vitalsSnapshot.temperatureC} °C`,
+      value: `${latestVitals.temperatureC}`,
+      unit: '°C',
       refRange: t('dashboard.vitalCards.tempRef'),
-      status: evaluateVitalCardStatus('body_temperature', vitalsSnapshot.temperatureC),
-      trend: vitalsSnapshot.tempTrend,
-      accent: '#38bdf8',
+      status: evaluateVitalCardStatus('body_temperature', latestVitals.temperatureC),
+      trend: sevenDayTrends.body_temperature,
     },
     {
-      id: 'blood_pressure_sys',
+      id: 'blood_pressure_sys' as const,
       label: t('indicators.blood_pressure_sys'),
-      value: `${vitalsSnapshot.systolicBp}/${vitalsSnapshot.diastolicBp} mmHg`,
+      value: `${latestVitals.systolicBp}/${latestVitals.diastolicBp}`,
+      unit: 'mmHg',
       refRange: t('dashboard.vitalCards.bpRef'),
-      status: evaluateVitalCardStatus('blood_pressure_sys', vitalsSnapshot.systolicBp),
-      trend: vitalsSnapshot.bpTrend,
-      accent: vitalsSnapshot.systolicBp > 130 ? '#f59e0b' : '#34d399',
+      status: evaluateVitalCardStatus('blood_pressure_sys', latestVitals.systolicBp),
+      trend: sevenDayTrends.blood_pressure_sys,
     },
   ];
 
   const vitalsBarData = [
     {
       key: 'FC',
-      pct: Math.min(100, Math.round((vitalsSnapshot.heartRateBpm / 130) * 100)),
-      raw: `${vitalsSnapshot.heartRateBpm} bpm`,
+      pct: Math.min(100, Math.round((latestVitals.heartRateBpm / 130) * 100)),
+      raw: `${latestVitals.heartRateBpm} bpm`,
+      status: vitalCards[0].status,
     },
     {
       key: 'SpO2',
-      pct: vitalsSnapshot.spO2Percent,
-      raw: `${vitalsSnapshot.spO2Percent}%`,
+      pct: latestVitals.spO2Percent,
+      raw: `${latestVitals.spO2Percent}%`,
+      status: vitalCards[1].status,
     },
     {
       key: 'Temp',
-      pct: Math.min(100, Math.max(20, Math.round(((vitalsSnapshot.temperatureC - 35) / 4) * 100))),
-      raw: `${vitalsSnapshot.temperatureC} °C`,
+      pct: Math.min(100, Math.max(20, Math.round(((latestVitals.temperatureC - 35) / 4) * 100))),
+      raw: `${latestVitals.temperatureC} °C`,
+      status: vitalCards[2].status,
     },
     {
       key: 'TA',
-      pct: Math.min(100, Math.round((vitalsSnapshot.systolicBp / 160) * 100)),
-      raw: `${vitalsSnapshot.systolicBp}/${vitalsSnapshot.diastolicBp}`,
+      pct: Math.min(100, Math.round((latestVitals.systolicBp / 160) * 100)),
+      raw: `${latestVitals.systolicBp}/${latestVitals.diastolicBp} mmHg`,
+      status: vitalCards[3].status,
     },
   ];
 
@@ -208,33 +225,32 @@ export const DashboardPage: React.FC = () => {
       transition={{ duration: reducedMotion ? 0 : 0.2 }}
       className="space-y-6"
     >
-      {/* Full-Width Hero Mission Card */}
+      {/* Full-width Hero Mission Card */}
       <Card data-testid="mission-hero-card">
-        <CardContent className="p-6 space-y-5">
+        <CardContent className="p-5 sm:p-6 space-y-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-500/15 text-cyan-400">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-500/15 text-cyan-400">
                 <Rocket className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-lg font-bold tracking-tight text-slate-950 dark:text-white">
                     {mission.name}
                   </h1>
                   <span className="rounded border border-cyan-400/25 bg-cyan-500/10 px-2 py-0.5 font-mono-tabular text-xs font-semibold text-cyan-700 dark:text-cyan-300">
-                    {t('common.day')} {progress.currentDay}/{mission.plannedDurationDays}
+                    {t('common.day')} {mission.currentDay}/{mission.plannedDurationDays}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    · {profile.fullName} · {t('common.simulatedData')}
+                    · {profile.fullName}
                   </span>
                 </div>
 
-                {/* UTC Mission Clock & Communication Delay (or Earth Site) */}
-                <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-mono-tabular">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono-tabular">
                   {effectiveMode === 'space' ? (
                     <div
                       data-testid="mission-clock-delay"
-                      className="flex flex-wrap items-center gap-x-5 gap-y-1 text-cyan-700 dark:text-cyan-300"
+                      className="flex flex-wrap items-center gap-x-4 gap-y-1 text-cyan-700 dark:text-cyan-300"
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <Clock className="h-3.5 w-3.5" aria-hidden="true" />
@@ -265,7 +281,6 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Completion % + Single Primary Action: Nouvelle mesure */}
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-baseline gap-1.5 font-mono-tabular">
                 <span className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">
@@ -288,11 +303,10 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Countdown + 5-Stage Progress Bar */}
           <div className="grid gap-4 lg:grid-cols-12 lg:items-center">
             <div
               data-testid="mission-countdown"
-              className="lg:col-span-5 rounded-lg border border-cyan-400/20 bg-slate-50 px-3.5 py-2.5 dark:bg-[#070d17]/80"
+              className="lg:col-span-5 rounded-lg border border-cyan-400/20 bg-slate-50 px-3.5 py-2.5 dark:bg-[#070d17]/75"
             >
               {countdown.reachedZero && !mission.actualDurationDays ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-amber-300">
@@ -374,93 +388,103 @@ export const DashboardPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Two Columns Below Mission Card (No Body Model on Dashboard) */}
+      {/* Two uncluttered columns below Mission card (NO body model on Dashboard) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
         {/* LEFT COLUMN: Constantes vitales (4 cards + Profil instantané live chart) */}
-        <Card data-testid="constantes-vitales-section" className="lg:col-span-7">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base font-semibold">
-                {t('dashboard.monitor.leftTitle')}
-              </CardTitle>
-              <span className="text-[11px] text-slate-400">{t('common.simulatedData')}</span>
-            </div>
-          </CardHeader>
+        <section
+          aria-labelledby="vitals-section-heading"
+          data-testid="vitals-column"
+          className="lg:col-span-7 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <h2
+              id="vitals-section-heading"
+              className="text-base font-semibold tracking-tight text-slate-950 dark:text-white"
+            >
+              {t('dashboard.monitor.leftTitle')}
+            </h2>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {t('common.simulatedData')}
+            </span>
+          </div>
 
-          <CardContent className="space-y-5">
-            {/* 4 Vital Cards: Value + Reference Range + Status Badge + 7-Day Mini Trend */}
-            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              {vitalCards.map((vc) => {
-                const sparkPath = buildMiniSparklinePath(vc.trend, 88, 26);
-                return (
-                  <div
-                    key={vc.id}
-                    data-testid={`vital-card-${vc.id}`}
-                    className="flex flex-col justify-between gap-3 rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75"
-                  >
+          {/* 4 Vital Cards */}
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            {vitalCards.map((card) => {
+              const sparkPath = buildMiniSparklinePath(card.trend, 88, 26);
+              const strokeColor = card.status === 'watch' ? '#f59e0b' : '#34d399';
+              return (
+                <Card
+                  key={card.id}
+                  data-testid={`vital-card-${card.id}`}
+                  className="transition-colors hover:border-cyan-400/50"
+                >
+                  <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                        {vc.label}
+                        {card.label}
                       </span>
-                      <StatusBadge status={vc.status} />
+                      <StatusBadge status={card.status} />
                     </div>
 
                     <div className="flex items-end justify-between gap-3">
                       <div>
                         <div
-                          className="font-mono-tabular text-xl font-bold text-slate-950 dark:text-white whitespace-nowrap"
+                          className="font-mono-tabular text-2xl font-bold text-slate-950 dark:text-white whitespace-nowrap"
                           dir="ltr"
                         >
-                          {vc.value}
+                          {card.value}{' '}
+                          <span className="text-xs font-normal text-slate-400">{card.unit}</span>
                         </div>
                         <div className="mt-1 text-[11px] font-mono-tabular text-slate-500 dark:text-slate-400">
-                          {t('dashboard.referenceRange')}: {vc.refRange}
+                          {t('dashboard.referenceRange')} : {card.refRange}
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1 shrink-0">
+                      <div className="flex flex-col items-end gap-1">
                         <svg
                           viewBox="0 0 88 26"
-                          className="h-6 w-[88px]"
-                          aria-label={`${vc.label} ${t('dashboard.vitalCards.trend7d')}`}
+                          className="h-7 w-22 overflow-visible"
+                          aria-label={`${card.label} ${t('dashboard.vitalCards.trend7d')}`}
                         >
                           <path
                             d={sparkPath}
                             fill="none"
-                            stroke={vc.accent}
-                            strokeWidth="2"
+                            stroke={strokeColor}
+                            strokeWidth="1.8"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           />
                         </svg>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
                           {t('dashboard.vitalCards.trend7d')}
                         </span>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
-            {/* Profil instantané Live Chart */}
-            <div
-              data-testid="profil-instantane-chart"
-              className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75"
-            >
-              <div className="mb-2 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-700 dark:text-slate-300">
+          {/* Profil instantané live chart */}
+          <Card data-testid="instant-profile-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-sm font-semibold">
                   {t('dashboard.monitor.leftChartTitle')}
-                </span>
-                <span className="font-mono-tabular text-[11px] text-cyan-500">LIVE</span>
+                </CardTitle>
+                <span className="text-[11px] text-slate-400">{t('common.simulatedData')}</span>
               </div>
+            </CardHeader>
+            <CardContent>
               <div className="h-36 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={vitalsBarData} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                  <BarChart data={vitalsBarData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                     <XAxis
                       dataKey="key"
                       interval={0}
-                      tick={{ fill: '#94a3b8', fontSize: 12 }}
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -484,10 +508,10 @@ export const DashboardPage: React.FC = () => {
                       ]}
                     />
                     <Bar dataKey="pct" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-                      {vitalsBarData.map((entry, idx) => (
+                      {vitalsBarData.map((entry) => (
                         <Cell
                           key={entry.key}
-                          fill={idx === 3 && vitalsSnapshot.systolicBp > 130 ? '#f59e0b' : '#38bdf8'}
+                          fill={entry.status === 'watch' ? '#f59e0b' : '#38bdf8'}
                           fillOpacity={0.85}
                         />
                       ))}
@@ -495,71 +519,87 @@ export const DashboardPage: React.FC = () => {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </section>
 
-        {/* RIGHT COLUMN: Suivi cérébral card + Voir la carte corporelle link */}
-        <Card data-testid="suivi-cerebral-card" className="lg:col-span-5">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-500/15 text-cyan-400">
-                  <Brain className="h-4.5 w-4.5" aria-hidden="true" />
+        {/* RIGHT COLUMN: Suivi cérébral card */}
+        <section
+          aria-labelledby="brain-card-heading"
+          data-testid="cerebral-monitor-column"
+          className="lg:col-span-5"
+        >
+          <Card data-testid="cerebral-monitor-card">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-400">
+                    <Brain className="h-4.5 w-4.5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <CardTitle id="brain-card-heading" className="text-base font-semibold">
+                      {t('dashboard.vitalCards.brainCardTitle')}
+                    </CardTitle>
+                    <div className="mt-0.5 text-[11px] text-slate-400">
+                      {t('common.simulatedData')}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-base font-semibold">
-                    {t('dashboard.vitalCards.brainCardTitle')}
-                  </CardTitle>
-                  <div className="text-[11px] text-slate-400">{t('common.simulatedData')}</div>
-                </div>
+                <StatusBadge status="nominal" />
               </div>
-              <StatusBadge status="nominal" />
-            </div>
-          </CardHeader>
+            </CardHeader>
 
-          <CardContent className="space-y-5">
-            <div className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
-                {t('dashboard.monitor.organPanel.orbitalRiskLabel')}
-              </div>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                {t('dashboard.vitalCards.brainOrbitalRiskNominal')}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3.5">
-              <div className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75">
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('dashboard.monitor.organPanel.brain.m1')}
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border border-cyan-400/20 bg-slate-50 p-3.5 text-xs dark:bg-[#070d17]/75">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
+                  {t('dashboard.monitor.organPanel.orbitalRiskLabel')}
                 </div>
-                <div className="mt-2 font-mono-tabular text-xl font-bold text-slate-950 dark:text-white" dir="ltr">
-                  11.4 <span className="text-xs font-normal text-slate-400">mmHg</span>
-                </div>
+                <p className="mt-1.5 leading-relaxed text-slate-700 dark:text-slate-300">
+                  {t('dashboard.vitalCards.brainOrbitalRiskNominal')}
+                </p>
               </div>
 
-              <div className="rounded-xl border border-cyan-400/20 bg-slate-50 p-4 dark:bg-[#070d17]/75">
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('dashboard.monitor.organPanel.brain.m2')}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-cyan-400/20 bg-slate-50 p-3.5 dark:bg-[#070d17]/75">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {t('dashboard.monitor.organPanel.brain.m1')}
+                  </div>
+                  <div
+                    className="mt-1.5 font-mono-tabular text-xl font-bold text-slate-950 dark:text-white"
+                    dir="ltr"
+                  >
+                    {nominalBaseline.intracranialPressureMmHg}{' '}
+                    <span className="text-xs font-normal text-slate-400">mmHg</span>
+                  </div>
                 </div>
-                <div className="mt-2 font-mono-tabular text-xl font-bold text-emerald-600 dark:text-emerald-400" dir="ltr">
-                  96 <span className="text-xs font-normal text-slate-400">%</span>
+
+                <div className="rounded-lg border border-cyan-400/20 bg-slate-50 p-3.5 dark:bg-[#070d17]/75">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {t('dashboard.monitor.organPanel.brain.m2')}
+                  </div>
+                  <div
+                    className="mt-1.5 font-mono-tabular text-xl font-bold text-emerald-600 dark:text-emerald-400"
+                    dir="ltr"
+                  >
+                    {nominalBaseline.cognitiveIndexPercent}{' '}
+                    <span className="text-xs font-normal text-slate-400">%</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="pt-1">
-              <Link
-                to="/body-map"
-                data-testid="view-body-map-link"
-                className="inline-flex w-full items-center justify-between rounded-xl border border-cyan-400/35 bg-cyan-500/12 px-4 py-3 text-sm font-semibold text-cyan-900 transition-colors hover:border-cyan-400/60 hover:bg-cyan-500/20 dark:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              >
-                <span>{t('dashboard.vitalCards.viewBodyMap')}</span>
-                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="pt-1">
+                <Link
+                  to="/body-map"
+                  data-testid="view-body-map-link"
+                  className="inline-flex w-full items-center justify-between rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-4 py-2.5 text-xs font-semibold text-cyan-900 transition-colors hover:bg-cyan-500/20 dark:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                >
+                  <span>{t('dashboard.vitalCards.viewBodyMap')}</span>
+                  <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </motion.div>
   );

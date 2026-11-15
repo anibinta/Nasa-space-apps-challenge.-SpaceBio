@@ -38,7 +38,6 @@ import { useSpaceBio } from '../../context/SpaceBioContext';
 import { getLanguageOption, SUPPORTED_LANGUAGES } from '../../data/languages';
 import { useTranslation } from '../../i18n';
 import { pickRandomBackground } from '../../lib/backgrounds';
-import { calculateMissionProgress } from '../../lib/healthEngine';
 import type { Language, UserRole } from '../../types/health';
 import { cn } from '../ui/cn';
 import { Button } from '../ui/button';
@@ -177,7 +176,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const roleBadge = ROLE_HEADER_BADGE[role];
   const RoleIcon = roleBadge.icon;
   const activeLangOption = getLanguageOption(language);
-  const missionProgress = calculateMissionProgress(mission);
 
   const activeNavAccent =
     role === 'admin'
@@ -263,7 +261,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <div className="mt-1 font-mono-tabular">
               {effectiveMode === 'space' ? t('common.spaceMode') : t('common.earthMode')}
               {role === 'astronaut'
-                ? ` · ${t('common.day')} ${missionProgress.currentDay}/${mission.plannedDurationDays}`
+                ? ` · ${t('common.day')} ${mission.currentDay}/${mission.plannedDurationDays}`
                 : ''}
             </div>
           </div>

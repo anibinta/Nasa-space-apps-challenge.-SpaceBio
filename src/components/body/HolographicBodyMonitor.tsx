@@ -60,12 +60,12 @@ const SILHOUETTE_PATH =
 
 const HOTSPOT_COORDS: Record<
   BodyOrganFocus,
-  { cx: number; cy: number; labelX: number; labelY: number; anchor: 'start' | 'end' }
+  { cx: number; cy: number; labelX: number; labelY: number; anchor: 'start' | 'end'; color: string }
 > = {
-  brain: { cx: 210, cy: 61, labelX: 256, labelY: 50, anchor: 'start' },
-  lungs: { cx: 184, cy: 192, labelX: 98, labelY: 168, anchor: 'end' },
-  heart: { cx: 222, cy: 198, labelX: 318, labelY: 188, anchor: 'start' },
-  skeleton: { cx: 244, cy: 405, labelX: 318, labelY: 405, anchor: 'start' },
+  brain: { cx: 210, cy: 60, labelX: 258, labelY: 48, anchor: 'start', color: '#f472b6' },
+  lungs: { cx: 184, cy: 194, labelX: 96, labelY: 168, anchor: 'end', color: '#e879f9' },
+  heart: { cx: 224, cy: 197, labelX: 320, labelY: 186, anchor: 'start', color: '#fb7185' },
+  skeleton: { cx: 245, cy: 334, labelX: 320, labelY: 334, anchor: 'start', color: '#cbd5e1' },
 };
 
 export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
@@ -122,77 +122,76 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
   return (
     <section
       data-testid="body-monitor-card"
-      className="glass-panel relative flex flex-col justify-between rounded-xl p-4 sm:p-5 overflow-hidden"
+      className="space-grid-bg relative flex flex-col justify-between rounded-xl border border-cyan-400/30 bg-[#070d17] p-4 sm:p-5 shadow-2xl overflow-hidden"
     >
-      {/* Top Toolbar: Calques Menu + Scenario Dropdown + Données simulées */}
+      {/* Top Toolbar: Left Calques | Centre Scenario Dropdown | Right Rose BPM badge + Données simulées */}
       <div className="relative z-20 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Single Calques menu (no permanent toggle buttons) */}
-          <div className="relative" ref={layersMenuRef}>
-            <button
-              type="button"
-              data-testid="layers-menu-btn"
-              aria-expanded={layersOpen}
-              onClick={() => setLayersOpen((o) => !o)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-cyan-400/30 bg-[#070d17]/90 px-3 text-xs font-medium text-cyan-200 transition-colors hover:border-cyan-400/60 hover:bg-cyan-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-            >
-              <Layers className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
-              <span>{t('dashboard.monitor.layersBtn')}</span>
-              <ChevronDown className="h-3 w-3 opacity-75" aria-hidden="true" />
-            </button>
+        {/* Left: Cyan Calques button */}
+        <div className="relative" ref={layersMenuRef}>
+          <button
+            type="button"
+            data-testid="layers-menu-btn"
+            aria-expanded={layersOpen}
+            onClick={() => setLayersOpen((o) => !o)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-cyan-400/40 bg-cyan-500/15 px-3 text-xs font-medium text-cyan-200 transition-colors hover:border-cyan-400/70 hover:bg-cyan-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            <Layers className="h-3.5 w-3.5 text-cyan-300" aria-hidden="true" />
+            <span>{t('dashboard.monitor.layersBtn')}</span>
+            <ChevronDown className="h-3 w-3 opacity-75" aria-hidden="true" />
+          </button>
 
-            {layersOpen && (
-              <div
-                role="menu"
-                data-testid="layers-menu-popover"
-                className="absolute left-0 top-10 z-50 w-48 rounded-xl border border-cyan-400/30 bg-[#0b1424] p-2.5 text-xs text-slate-200 shadow-2xl space-y-1"
-              >
-                {BODY_LAYER_IDS.map((layerId) => (
-                  <label
-                    key={layerId}
-                    className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 hover:bg-cyan-500/10"
-                  >
-                    <span>{t(`dashboard.monitor.layerNames.${layerId}`)}</span>
-                    <input
-                      type="checkbox"
-                      data-testid={`layer-toggle-${layerId}`}
-                      checked={visibleLayers[layerId]}
-                      onChange={() => toggleLayer(layerId)}
-                      className="h-3.5 w-3.5 rounded border-cyan-400/40 bg-[#070d17] text-cyan-400 focus:ring-cyan-400"
-                    />
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Single Scenario dropdown (not 4 buttons) */}
-          <div className="flex items-center gap-1.5">
-            <label htmlFor="body-scenario-select" className="sr-only">
-              {t('dashboard.monitor.scenarioLabel')}
-            </label>
-            <select
-              id="body-scenario-select"
-              data-testid="scenario-select"
-              value={scenarioId}
-              onChange={(e) => onScenarioChange(e.target.value as BodyScenarioId)}
-              className="h-8 rounded-lg border border-cyan-400/30 bg-[#070d17]/90 px-2.5 text-xs font-medium text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          {layersOpen && (
+            <div
+              role="menu"
+              data-testid="layers-menu-popover"
+              className="absolute left-0 top-10 z-50 w-48 rounded-xl border border-cyan-400/30 bg-[#0b1424] p-2.5 text-xs text-slate-200 shadow-2xl space-y-1"
             >
-              <option value="nominal">{t('dashboard.monitor.scenarios.nominal')}</option>
-              <option value="eva">{t('dashboard.monitor.scenarios.eva')}</option>
-              <option value="bone_alert">{t('dashboard.monitor.scenarios.bone_alert')}</option>
-              <option value="solar_storm">{t('dashboard.monitor.scenarios.solar_storm')}</option>
-            </select>
-          </div>
+              {BODY_LAYER_IDS.map((layerId) => (
+                <label
+                  key={layerId}
+                  className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 hover:bg-cyan-500/10"
+                >
+                  <span>{t(`dashboard.monitor.layerNames.${layerId}`)}</span>
+                  <input
+                    type="checkbox"
+                    data-testid={`layer-toggle-${layerId}`}
+                    checked={visibleLayers[layerId]}
+                    onChange={() => toggleLayer(layerId)}
+                    className="h-3.5 w-3.5 rounded border-cyan-400/40 bg-[#070d17] text-cyan-400 focus:ring-cyan-400"
+                  />
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Centre: Single Scenario dropdown */}
+        <div className="flex items-center justify-center">
+          <label htmlFor="body-scenario-select" className="sr-only">
+            {t('dashboard.monitor.scenarioLabel')}
+          </label>
+          <select
+            id="body-scenario-select"
+            data-testid="scenario-select"
+            value={scenarioId}
+            onChange={(e) => onScenarioChange(e.target.value as BodyScenarioId)}
+            className="h-8 rounded-lg border border-cyan-400/30 bg-[#0b1424] px-3 text-xs font-medium text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            <option value="nominal">{t('dashboard.monitor.scenarios.nominal')}</option>
+            <option value="eva">{t('dashboard.monitor.scenarios.eva')}</option>
+            <option value="bone_alert">{t('dashboard.monitor.scenarios.bone_alert')}</option>
+            <option value="solar_storm">{t('dashboard.monitor.scenarios.solar_storm')}</option>
+          </select>
+        </div>
+
+        {/* Right: Rose badge (or semantic accent) with live BPM + Données simulées */}
         <div className="flex items-center gap-2">
           <span
-            className="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-mono-tabular"
+            className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold font-mono-tabular"
             style={{
-              borderColor: `${accentHex}55`,
+              borderColor: `${accentHex}66`,
               color: accentHex,
-              backgroundColor: `${accentHex}14`,
+              backgroundColor: `${accentHex}1f`,
             }}
           >
             <span
@@ -280,18 +279,18 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
               <stop offset="100%" stopColor="#691f17" stopOpacity="0.75" />
             </linearGradient>
 
-            {/* Brain pink radial gradient */}
+            {/* Brain pink-magenta radial gradient */}
             <radialGradient id="brainRadial" cx="50%" cy="45%" r="55%">
-              <stop offset="0%" stopColor="#fbcfe8" />
-              <stop offset="55%" stopColor="#f472b6" />
-              <stop offset="100%" stopColor="#be185d" />
+              <stop offset="0%" stopColor="#f9a8d4" />
+              <stop offset="55%" stopColor="#ec4899" />
+              <stop offset="100%" stopColor="#9d174d" />
             </radialGradient>
 
-            {/* Lungs pink radial gradient */}
-            <radialGradient id="lungRadial" cx="50%" cy="45%" r="55%">
-              <stop offset="0%" stopColor="#fce7f3" stopOpacity="0.88" />
-              <stop offset="55%" stopColor="#f472b6" stopOpacity="0.72" />
-              <stop offset="100%" stopColor="#be185d" stopOpacity="0.65" />
+            {/* Lungs pink-violet radial gradient */}
+            <radialGradient id="lungRadial" cx="50%" cy="45%" r="58%">
+              <stop offset="0%" stopColor="#f5d0fe" stopOpacity="0.9" />
+              <stop offset="52%" stopColor="#e879f9" stopOpacity="0.72" />
+              <stop offset="100%" stopColor="#7e22ce" stopOpacity="0.68" />
             </radialGradient>
 
             {/* Heart red radial gradient */}
@@ -394,17 +393,25 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
                 strokeWidth="4.2"
                 strokeLinecap="round"
               />
-              {/* Spine column */}
+              {/* Spine: pink dashed central line + white vertebrae */}
+              <path
+                d="M210,104 L210,334"
+                fill="none"
+                stroke="#f472b6"
+                strokeWidth="2.4"
+                strokeDasharray="4 4"
+                opacity="0.9"
+              />
               {Array.from({ length: 16 }).map((_, idx) => (
                 <rect
                   key={idx}
                   x="205.5"
                   y={108 + idx * 14}
                   width="9"
-                  height="9"
+                  height="8.5"
                   rx="2.5"
                   fill="url(#boneGrad)"
-                  opacity="0.92"
+                  opacity="0.95"
                 />
               ))}
               {/* Sternum */}
@@ -538,7 +545,7 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
               </g>
             </g>
 
-            {/* 5. RESPIRATORY LAYER (Lungs with pink radial gradient + 3.8s / 2.2s EVA breathing) */}
+            {/* 5. RESPIRATORY LAYER (Two pink-violet lungs with bubbly alveolar texture + 3.8s / 2.2s EVA breathing) */}
             <g
               data-testid="layer-respiratory"
               style={{
@@ -554,7 +561,7 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
                 <path
                   d="M210,126 L210,164 M210,164 L192,180 M210,164 L228,180"
                   fill="none"
-                  stroke="#f9a8d4"
+                  stroke="#f5d0fe"
                   strokeWidth="3.4"
                   strokeLinecap="round"
                 />
@@ -562,7 +569,7 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
                 <path
                   d="M201,164 C180,162 162,182 159,212 C157,232 168,243 185,241 C198,239 203,228 203,210 Z"
                   fill="url(#lungRadial)"
-                  stroke="#fbcfe8"
+                  stroke="#f5d0fe"
                   strokeOpacity="0.65"
                   strokeWidth="1.2"
                 />
@@ -570,14 +577,29 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
                 <path
                   d="M219,164 C240,162 258,182 261,212 C263,232 252,243 235,241 C222,239 217,228 217,210 Z"
                   fill="url(#lungRadial)"
-                  stroke="#fbcfe8"
+                  stroke="#f5d0fe"
                   strokeOpacity="0.65"
                   strokeWidth="1.2"
                 />
+                {/* Bubbly alveolar texture inside both pink-violet lungs */}
+                <g fill="#fdf4ff" fillOpacity="0.28" stroke="#f0abfc" strokeOpacity="0.35" strokeWidth="0.7">
+                  <circle cx="187" cy="183" r="5" />
+                  <circle cx="174" cy="197" r="6" />
+                  <circle cx="190" cy="202" r="5.5" />
+                  <circle cx="172" cy="218" r="6.5" />
+                  <circle cx="189" cy="222" r="5" />
+                  <circle cx="178" cy="233" r="4" />
+                  <circle cx="233" cy="183" r="5" />
+                  <circle cx="246" cy="197" r="6" />
+                  <circle cx="230" cy="202" r="5.5" />
+                  <circle cx="248" cy="218" r="6.5" />
+                  <circle cx="231" cy="222" r="5" />
+                  <circle cx="242" cy="233" r="4" />
+                </g>
               </g>
             </g>
 
-            {/* 6. NERVOUS LAYER (Brain pink radial gradient + 2.6s neural glow pulse) */}
+            {/* 6. NERVOUS LAYER (Rounded magenta-pink brain with concentric folds + 2.6s neural glow + pink spinal line) */}
             <g
               data-testid="layer-nervous"
               style={{
@@ -587,26 +609,27 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
             >
               <g className="holo-neural-pulse">
                 <path
-                  d="M210,33 C191,33 184,48 186,64 C188,76 198,81 207,80 L210,77 L213,80 C222,81 232,76 234,64 C236,48 229,33 210,33 Z"
+                  d="M210,32 C190,32 183,48 185,64 C187,77 198,82 207,81 L210,78 L213,81 C222,82 233,77 235,64 C237,48 230,32 210,32 Z"
                   fill="url(#brainRadial)"
                   stroke="#fbcfe8"
-                  strokeWidth="1.1"
+                  strokeWidth="1.2"
                 />
+                {/* Concentric cortical folds */}
                 <path
-                  d="M196,46 Q204,53 197,62 M224,46 Q216,53 223,62 M210,36 L210,76"
+                  d="M210,35 L210,77 M198,40 C190,46 190,66 199,73 M222,40 C230,46 230,66 221,73 M202,46 C196,52 197,62 203,67 M218,46 C224,52 223,62 217,67 M193,56 C199,54 202,58 206,56 M227,56 C221,54 218,58 214,56"
                   fill="none"
                   stroke="#fdf2f8"
-                  strokeOpacity="0.65"
+                  strokeOpacity="0.72"
                   strokeWidth="1.1"
                   strokeLinecap="round"
                 />
                 <path
-                  d="M210,80 L210,340"
+                  d="M210,81 L210,336"
                   fill="none"
                   stroke="#f472b6"
-                  strokeOpacity="0.45"
-                  strokeWidth="1.4"
-                  strokeDasharray="3 4"
+                  strokeOpacity="0.68"
+                  strokeWidth="1.8"
+                  strokeDasharray="4 4"
                 />
               </g>
             </g>
@@ -630,11 +653,11 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
             className="holo-rim-animate"
           />
 
-          {/* Interactive Hotspots: CERVEAU, POUMONS, CŒUR, SQUELETTE */}
+          {/* Interactive Hotspots: white ring with dark centre, pulsing, organ-coloured leader lines, uppercase labels */}
           {(['brain', 'lungs', 'heart', 'skeleton'] as const).map((organ) => {
             const coord = HOTSPOT_COORDS[organ];
             const isSelected = focusedOrgan === organ;
-            const ringColor = isSelected ? '#38bdf8' : accentHex;
+            const organColor = coord.color;
             const label = t(`dashboard.monitor.hotspots.${organ}`);
             const textAnchor = coord.anchor;
 
@@ -655,15 +678,15 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
                 }}
                 className="cursor-pointer focus:outline-none"
               >
-                {/* Leader hairline */}
+                {/* Thin leader line in the organ's colour */}
                 <line
                   x1={coord.cx}
                   y1={coord.cy}
                   x2={coord.labelX}
                   y2={coord.labelY}
-                  stroke={ringColor}
-                  strokeOpacity={isSelected ? 0.95 : 0.6}
-                  strokeWidth="1.2"
+                  stroke={organColor}
+                  strokeOpacity={isSelected ? 1 : 0.72}
+                  strokeWidth={isSelected ? '1.5' : '1.15'}
                 />
                 {/* Outer pulsing ring */}
                 <circle
@@ -671,27 +694,35 @@ export const HolographicBodyMonitor: React.FC<HolographicBodyMonitorProps> = ({
                   cy={coord.cy}
                   r="11"
                   fill="none"
-                  stroke={ringColor}
-                  strokeWidth="1.5"
+                  stroke="#ffffff"
+                  strokeOpacity="0.8"
+                  strokeWidth="1.4"
                   className="holo-hotspot-pulse"
                 />
-                {/* Crisp static ring + white center */}
+                {/* White ring with a dark centre */}
                 <circle
                   cx={coord.cx}
                   cy={coord.cy}
-                  r={isSelected ? 9 : 7.5}
-                  fill="rgba(7, 13, 23, 0.72)"
-                  stroke={ringColor}
-                  strokeWidth={isSelected ? 2.2 : 1.6}
+                  r={isSelected ? 8.5 : 7}
+                  fill="#070d17"
+                  stroke="#ffffff"
+                  strokeWidth={isSelected ? 2.6 : 2}
                 />
-                <circle cx={coord.cx} cy={coord.cy} r="3.2" fill="#ffffff" />
+                <circle
+                  cx={coord.cx}
+                  cy={coord.cy}
+                  r="2.4"
+                  fill="#070d17"
+                  stroke={organColor}
+                  strokeWidth="1.2"
+                />
 
-                {/* Clickable hotspot tag */}
+                {/* Clickable uppercase label */}
                 <text
                   x={coord.anchor === 'start' ? coord.labelX + 6 : coord.labelX - 6}
                   y={coord.labelY + 4}
                   textAnchor={textAnchor}
-                  fill={isSelected ? '#f8fafc' : '#bae6fd'}
+                  fill={isSelected ? '#ffffff' : organColor}
                   fontSize="10.5"
                   fontWeight={isSelected ? '700' : '600'}
                   letterSpacing="0.06em"
